@@ -97,13 +97,17 @@ async fn main() -> std::io::Result<()> {
             // POST api
             .service(crate::api::auth::callback_request)
             .service(crate::api::projects::create_request)
+            .service(crate::api::projects::edit_script_request)
             // GET api
             .service(crate::api::auth::logout)
+            .service(crate::api::projects::get_script_request)
             // GET root
             .service(crate::pages::home::home_request)
             .service(crate::pages::dashboard::dashboard_request)
             .service(crate::pages::dashboard::new_project_request)
             .service(crate::pages::dashboard::projects_dashboard_request)
+            // GET project
+            .service(crate::pages::dashboard::project_view_request)
             // ERRORS
             .default_service(web::to(|req, data| async {
                 return crate::pages::errors::error404(req, data).await;

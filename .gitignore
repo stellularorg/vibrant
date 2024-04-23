@@ -4,3 +4,4 @@ bun.lockb
 static/js/
 static/css/
 target/
+.env

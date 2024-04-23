@@ -30,7 +30,7 @@ impl Default for ProjectRequestLimit {
 pub struct Project {
     /// basically the project ID (no spaces, must be unique)
     pub name: String,
-    /// username of the project owner
+    /// username of the project owner, if this starts with `org:` it will be treated as the name of an [`Organization`]
     pub owner: String,
     /// NOT A CREATION TIMESTAMP, billing period start (limit beginning)
     pub timestamp: u128,
@@ -56,11 +56,38 @@ impl Default for ProjectPrivateMetadata {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct ProjectMetadata {}
+pub struct ProjectMetadata {
+    /// Simple bash script to run deployment commands
+    #[serde(default)]
+    pub script: String,
+}
 
 impl Default for ProjectMetadata {
     fn default() -> Self {
-        ProjectMetadata {}
+        ProjectMetadata {
+            script: String::new(),
+        }
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Organization {
+    /// must be unique (same requirements as [`Project`] name)
+    pub name: String,
+    /// username of the organization owner, has permission to delete projects under the organization
+    pub owner: String,
+    /// this one is a creation timestamp
+    pub timestamp: u128,
+    /// metadata that can only be edited by the organization owner
+    pub metadata: OrganizationMetadata,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct OrganizationMetadata {}
+
+impl Default for OrganizationMetadata {
+    fn default() -> Self {
+        OrganizationMetadata {}
     }
 }
 

@@ -11,6 +11,7 @@ const output = await build({
     entrypoints: [
         "./static/ts/pages/Footer.ts",
         "./static/ts/pages/NewProject.ts",
+        "./static/ts/pages/ViewProject.ts",
     ],
     minify: {
         identifiers: true,

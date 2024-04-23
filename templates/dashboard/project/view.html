@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }}{% endblock %}
+
+{% block content %}
+<div id="link-header" style="display: flex;" class="flex-column bg-1">
+    <div class="link-header-top"></div>
+    <div class="link-header-middle flex flex-column g-4">
+        <span class="chip mention" style="width: max-content;">{{ project.owner }}</span>
+        <h1 class="no-margin">{{ project.name }}</h1>
+    </div>
+    <div class="link-header-bottom">
+        <div class="device:desktop flex">
+            <a href="/dashboard" class="button">Home</a>
+            <a href="/dashboard/projects" class="button">Projects</a>
+            <div class="hr-left" style="margin: 0 var(--u-10);"></div>
+        </div>
+
+        <a href="/dashboard/project/{{ project.name }}" class="button active">Overview</a>
+        <a href="/dashboard/project/{{ project.name }}/settings" class="button">Settings</a>
+    </div>
+</div>
+
+<main class="small flex flex-column g-4">
+    <div class="full flex justify-space-between align-center g-4 flex-wrap">
+        <h6 class="no-margin">Deployment Status</h6>
+
+        <div class="flex g-4 flex-wrap">
+            <button id="deploy" class="primary round" title="Run Deployment Script">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="lucide lucide-container">
+                    <path
+                        d="M22 7.7c0-.6-.4-1.2-.8-1.5l-6.3-3.9a1.72 1.72 0 0 0-1.7 0l-10.3 6c-.5.2-.9.8-.9 1.4v6.6c0 .5.4 1.2.8 1.5l6.3 3.9a1.72 1.72 0 0 0 1.7 0l10.3-6c.5-.3.9-1 .9-1.5Z" />
+                    <path d="M10 21.9V14L2.1 9.1" />
+                    <path d="m10 14 11.9-6.9" />
+                    <path d="M14 19.8v-8.1" />
+                    <path d="M18 17.5V9.4" />
+                </svg>
+
+                Deploy
+            </button>
+
+            <button data-dialog="deployment_script" class="round tertiary" title="Edit Deployment Script">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="lucide lucide-scroll">
+                    <path d="M19 17V5a2 2 0 0 0-2-2H4" />
+                    <path
+                        d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="card round secondary full" id="deployment">
+        no
+    </div>
+
+    <dialog id="deployment_script">
+        <div style="width: 25rem; max-width: 100%;">
+            <h2 class="no-margin full text-center">Build Script</h2>
+
+            <hr />
+
+            <form id="save_deployment_script" action="/api/v1/project/{{ project.name }}/script" method="post"
+                class="flex flex-column g-4">
+                <textarea class="full round" name="script" id="script" placeholder="git clone ..." rows="10"
+                    style="font-family: monospace; white-space: pre;">{{ project.metadata.script }}</textarea>
+
+                <button class="round primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="lucide lucide-save">
+                        <path
+                            d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+                        <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" />
+                        <path d="M7 3v4a1 1 0 0 0 1 1h7" />
+                    </svg>
+
+                    Save
+                </button>
+            </form>
+
+            <hr />
+
+            <div class="full flex justify-right">
+                <a class="button round red" href="javascript:document.getElementById('deployment_script').close();">
+                    Close
+                </a>
+            </div>
+        </div>
+    </dialog>
+</main>
+
+<script type="module">
+    import "/static/js/ViewProject.js";
+</script>
+{% call super() %}
+{% endblock %}
