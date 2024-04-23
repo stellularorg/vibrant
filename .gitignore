@@ -1,0 +1,6 @@
+*.db
+node_modules/
+bun.lockb
+static/js/
+static/css/
+target/

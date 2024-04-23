@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Auth Options{% endblock %}
+
+{% block content %}
+<div class="flex flex-column g-4">
+    <main class="small flex flex-column g-4 align-center">
+        <div class="card secondary round border flex flex-column g-4" style="width: 25rem; max-width: 100dvw;"
+            id="options">
+            <a href="{{ guppy }}/d/auth/login" class="button full round primary"
+                data-wants-redirect="true">Login</a>
+            <a href="{{ guppy }}/d/auth/register" class="button full round primary"
+                data-wants-redirect="true">Register</a>
+        </div>
+    </main>
+</div>
+{% call super() %}
+{% endblock %}

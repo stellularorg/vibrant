@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div id="link-header" style="display: flex;" class="flex-column bg-1">
+    <div class="link-header-top"></div>
+    <div class="link-header-middle flex align-center flex-column g-4">
+        <h1 class="no-margin">Open PaaS <em style="font-weight: normal;">for</em> Static Sites</h1>
+
+        <div class="flex g-4 flex-wrap">
+            {% if auth_state == false %}
+            <a href="{{ guppy }}/d/auth/login" class="button green-cta round" data-wants-redirect="true">Login</a>
+            <a href="{{ guppy }}/d/auth/register" class="button green secondary round"
+                data-wants-redirect="true">Register</a>
+            {% else %}
+            <a href="/dashboard" class="button primary round">My Dashboard</a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="link-header-bottom"></div>
+</div>
+
+<main class="small">
+    <div class="card secondary round flex flex-column g-4">
+        <details class="round border">
+            <summary>What?</summary>
+
+            <div class="card">
+                <p>
+                    Vibrant organizes each site into "projects" the static assets that are served for each site. Vibrant
+                    only supports <em>static</em> (meaning no server interaction) websites <b>for now</b>.
+                </p>
+
+                <p>
+                    Each site is given a certain amount of available requests per month at the start of each month
+                    (starting
+                    the day the project is created). The basic normal limit is <code>1,000,000</code> requests per
+                    month!
+                    This can be upgraded to <code>100,000,000</code> or no limit, depending on the options made
+                    available by
+                    this server.
+                </p>
+            </div>
+        </details>
+
+        <details class="round border">
+            <summary>Open?</summary>
+
+            <div class="card">
+                <p>
+                    Open as in open source! You can find the source for Vibrant <a
+                        href="https://code.stellular.org/stellular/vibrant">here</a>! <em>You can also find its license
+                        card
+                        <a href="https://stellular.net/+oss/misc.html#vibrant">here</a>.</em>
+                </p>
+            </div>
+        </details>
+    </div>
+</main>
+{% call super() %}
+{% endblock %}
