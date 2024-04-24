@@ -1,12 +1,20 @@
+use bollard::secret::HostConfig;
 use dorsal::query as sqlquery;
 use dorsal::DefaultReturn;
 
+use bollard::container::{Config as ContainerConfig, RemoveContainerOptions};
+use bollard::Docker;
+
 use serde::{Deserialize, Serialize};
+
+const KIT_IMAGE: &str = "vibrant_deploy_kit:latest"; // container image
 
 #[derive(Clone)]
 pub struct AppData {
     pub db: Database,
     pub http_client: awc::Client,
+    pub daemon: Docker,
+    pub port: u16,
 }
 
 // base structures
@@ -45,12 +53,19 @@ pub struct Project {
 pub struct ProjectPrivateMetadata {
     #[serde(default)]
     pub limit: ProjectRequestLimit,
+    // container settings
+    #[serde(default)]
+    pub image: String,
+    pub cid: Option<String>,
 }
 
 impl Default for ProjectPrivateMetadata {
     fn default() -> Self {
         ProjectPrivateMetadata {
             limit: ProjectRequestLimit::default(),
+            // container settings
+            image: KIT_IMAGE.to_string(),
+            cid: Option::None,
         }
     }
 }
@@ -327,6 +342,8 @@ impl Database {
         &self,
         props: &mut PCreateProject,
         as_user: Option<String>, // username of owner
+        daemon: Docker,
+        port: u16,
     ) -> DefaultReturn<Option<PCreateProject>> {
         // make sure we're authenticated
         if as_user.is_none() {
@@ -410,6 +427,10 @@ impl Database {
         self.base
             .cachedb
             .remove_starting_with(format!("projects-by-owner:{}*", as_user.as_ref().unwrap()))
+            .await;
+
+        // create container
+        self.create_project_container(props.name.clone(), daemon, port)
             .await;
 
         // return
@@ -576,7 +597,7 @@ impl Database {
     pub async fn edit_project_private_metadata_by_name(
         &self,
         name: String,
-        metadata: ProjectMetadata,
+        metadata: ProjectPrivateMetadata,
         edit_as: Option<String>, // username of account that is editing this project
     ) -> DefaultReturn<Option<String>> {
         // make sure project exists
@@ -603,28 +624,30 @@ impl Database {
             Option::None
         };
 
-        if ua.is_none() {
-            return DefaultReturn {
-                success: false,
-                message: String::from("An account is required to do this"),
-                payload: Option::None,
-            };
-        }
+        // if ua.is_none() {
+        //     return DefaultReturn {
+        //         success: false,
+        //         message: String::from("An account is required to do this"),
+        //         payload: Option::None,
+        //     };
+        // }
 
         // make sure we can do this
-        let user = ua.unwrap().unwrap();
-        let can_edit: bool =
-            // using "metadata" here likely prohibits us from changing board owner
-            (user.user.username == project.owner) | (user.level.permissions.contains(&String::from("VIB:Admin")));
+        if ua.is_some() {
+            let user = ua.unwrap().unwrap();
+            let can_edit: bool =
+                // using "metadata" here likely prohibits us from changing board owner
+                (user.user.username == project.owner) | (user.level.permissions.contains(&String::from("VIB:Admin")));
 
-        if can_edit == false {
-            return DefaultReturn {
-                success: false,
-                message: String::from(
-                    "You do not have permission to manage this project's contents.",
-                ),
-                payload: Option::None,
-            };
+            if can_edit == false {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from(
+                        "You do not have permission to manage this project's contents.",
+                    ),
+                    payload: Option::None,
+                };
+            }
         }
 
         // update project
@@ -655,7 +678,7 @@ impl Database {
 
         if existing_in_cache.is_some() {
             let mut project = serde_json::from_str::<Project>(&existing_in_cache.unwrap()).unwrap();
-            project.metadata = metadata; // update metadata
+            project.private_metadata = metadata; // update metadata
 
             // update cache
             self.base
@@ -672,6 +695,266 @@ impl Database {
             success: true,
             message: String::from("Project updated!"),
             payload: Option::Some(name),
+        };
+    }
+
+    /// Delete a [`Project`] given its `name`
+    pub async fn delete_project(
+        &self,
+        name: String,
+        delete_as: Option<String>, // username of account that is deleting this project
+        daemon: Docker,
+    ) -> DefaultReturn<Option<String>> {
+        // make sure project exists
+        let existing = &self.get_project_by_id(name.clone()).await;
+        if !existing.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Project does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        let project = existing.payload.as_ref().unwrap();
+
+        // get delete_as user account
+        let ua = if delete_as.is_some() {
+            Option::Some(
+                self.auth
+                    .get_user_by_username(delete_as.clone().unwrap())
+                    .await
+                    .payload,
+            )
+        } else {
+            Option::None
+        };
+
+        // make sure we can do this
+        if ua.is_some() {
+            let user = ua.unwrap().unwrap();
+            let can_delete: bool =
+                // using "metadata" here likely prohibits us from changing board owner
+                (user.user.username == project.owner) | (user.level.permissions.contains(&String::from("VIB:Admin")));
+
+            if can_delete == false {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from(
+                        "You do not have permission to manage this project's contents.",
+                    ),
+                    payload: Option::None,
+                };
+            }
+        }
+
+        // update project
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
+            "DELETE FROM \"Projects\" WHERE \"name\" = ?"
+        } else {
+            "DELETE FROM \"Projects\" WHERE \"name\" = $2"
+        };
+
+        let c = &self.base.db.client;
+        let res = sqlquery(query).bind::<&String>(&name).execute(c).await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
+        // remove container
+        self.remove_project_container(name.clone(), daemon).await;
+
+        // update cache
+        self.base.cachedb.remove(format!("project:{}", name)).await;
+
+        if delete_as.is_some() {
+            self.base
+                .cachedb
+                .remove_starting_with(format!(
+                    "projects-by-owner:{}*",
+                    delete_as.as_ref().unwrap()
+                ))
+                .await;
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Project deleted!"),
+            payload: Option::Some(name),
+        };
+    }
+
+    // docker
+    /// Create a Docker container for a given [`Project`]
+    pub async fn create_project_container(
+        &self,
+        name: String,
+        daemon: Docker,
+        port: u16,
+    ) -> DefaultReturn<Option<String>> {
+        // get project
+        let existing = self.get_project_by_id(name.clone()).await;
+
+        if existing.success == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Project does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        // create container
+        let mut metadata = existing.payload.unwrap().private_metadata;
+        let res = daemon
+            .create_container::<&str, &str>(
+                Option::None,
+                ContainerConfig {
+                    image: Option::Some(&metadata.image),
+                    env: Option::Some(vec![
+                        &format!("VIBRANT_URL=\"http://localhost:{port}\""),
+                        &format!("PROJECT=\"{name}\""),
+                    ]),
+                    host_config: Option::Some(HostConfig {
+                        extra_hosts: Option::Some(vec![
+                            // add host network so we can connect to vibrant
+                            "host.docker.internal:host-gateway".to_string(),
+                        ]),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                },
+            )
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to create container"),
+                payload: Option::None,
+            };
+        }
+
+        let cid = res.unwrap().id;
+        metadata.cid = Option::Some(cid.clone());
+
+        // store cid
+        self.edit_project_private_metadata_by_name(name, metadata, Option::None)
+            .await;
+
+        // default return
+        return DefaultReturn {
+            success: false,
+            message: String::from("Started container"),
+            payload: Option::Some(cid),
+        };
+    }
+
+    /// Start a [`Project`] container based on its stored CID
+    pub async fn start_project_container(
+        &self,
+        name: String,
+        daemon: Docker,
+    ) -> DefaultReturn<Option<String>> {
+        // get project
+        let existing = self.get_project_by_id(name.clone()).await;
+
+        if existing.success == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Project does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        // get cid
+        let cid = existing.payload.unwrap().private_metadata.cid;
+
+        if cid.is_none() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Project container does not exist"),
+                payload: Option::None,
+            };
+        }
+
+        // start container
+        let res = daemon
+            .start_container::<String>(&cid.as_ref().unwrap(), Option::None)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to start project container"),
+                payload: Option::None,
+            };
+        }
+
+        // default return
+        return DefaultReturn {
+            success: false,
+            message: String::from("Started container"),
+            payload: Option::Some(cid.unwrap()),
+        };
+    }
+
+    /// Remove a [`Project`] container based on its stored CID
+    pub async fn remove_project_container(
+        &self,
+        name: String,
+        daemon: Docker,
+    ) -> DefaultReturn<Option<String>> {
+        // get project
+        let existing = self.get_project_by_id(name.clone()).await;
+
+        if existing.success == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Project does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        // get cid
+        let cid = existing.payload.unwrap().private_metadata.cid;
+
+        if cid.is_none() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Project container does not exist"),
+                payload: Option::None,
+            };
+        }
+
+        // delete container
+        let res = daemon
+            .remove_container(
+                &cid.as_ref().unwrap(),
+                Option::Some(RemoveContainerOptions {
+                    force: true,
+                    ..Default::default()
+                }),
+            )
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to delete project container"),
+                payload: Option::None,
+            };
+        }
+
+        // default return
+        return DefaultReturn {
+            success: false,
+            message: String::from("Container deleted"),
+            payload: Option::Some(cid.unwrap()),
         };
     }
 }

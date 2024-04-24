@@ -71,6 +71,8 @@ async fn main() -> std::io::Result<()> {
         let data = web::Data::new(AppData {
             db: db.clone(),
             http_client: client,
+            daemon: bollard::Docker::connect_with_defaults().unwrap(),
+            port: port,
         });
 
         let cors = actix_cors::Cors::default().send_wildcard();
@@ -98,6 +100,8 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::auth::callback_request)
             .service(crate::api::projects::create_request)
             .service(crate::api::projects::edit_script_request)
+            // DELETE api
+            .service(crate::api::projects::delete_project_request)
             // GET api
             .service(crate::api::auth::logout)
             .service(crate::api::projects::get_script_request)

@@ -1,5 +1,5 @@
 use crate::db::{AppData, PCreateProject};
-use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
+use actix_web::{delete, get, post, web, HttpRequest, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 
 use crate::pages::base;
@@ -28,6 +28,8 @@ pub async fn create_request(
             } else {
                 Option::None
             },
+            data.daemon.clone(),
+            data.port.clone(),
         )
         .await;
 
@@ -114,4 +116,33 @@ pub async fn get_script_request(req: HttpRequest, data: web::Data<AppData>) -> i
     return HttpResponse::Ok()
         .append_header(("Content-Type", "application/x-sh"))
         .body(metadata.script);
+}
+
+#[delete("/api/v1/project/{name:.*}")]
+/// Delete a project given its `name`
+pub async fn delete_project_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
+    let project_name = req.match_info().get("name").unwrap();
+
+    // verify auth status
+    let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
+
+    if token_user.is_none() {
+        return HttpResponse::NotAcceptable().body("An account is required to edit projects.");
+    }
+
+    // delete project
+    let res = data
+        .db
+        .delete_project(
+            project_name.to_string(),
+            Option::Some(token_user.unwrap().payload.unwrap().user.username),
+            data.daemon.clone(),
+        )
+        .await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .append_header(("Set-Cookie", set_cookie))
+        .body(serde_json::to_string::<dorsal::DefaultReturn<Option<String>>>(&res).unwrap());
 }
