@@ -1,3 +1,4 @@
+use base64::Engine;
 use bollard::secret::HostConfig;
 use dorsal::query as sqlquery;
 use dorsal::DefaultReturn;
@@ -34,6 +35,26 @@ impl Default for ProjectRequestLimit {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ProjectType {
+    /// Files are manually uploaded and stored in the database as base64
+    StaticPackage,
+    /// Files are built inside of a dedicated Docker container/microvm
+    StaticContainer,
+}
+
+impl Default for ProjectType {
+    fn default() -> Self {
+        ProjectType::StaticPackage
+    }
+}
+
+impl std::fmt::Display for ProjectType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Project {
     /// basically the project ID (no spaces, must be unique)
@@ -52,6 +73,8 @@ pub struct Project {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ProjectPrivateMetadata {
     #[serde(default)]
+    pub r#type: ProjectType,
+    #[serde(default)]
     pub limit: ProjectRequestLimit,
     // container settings
     #[serde(default)]
@@ -62,6 +85,7 @@ pub struct ProjectPrivateMetadata {
 impl Default for ProjectPrivateMetadata {
     fn default() -> Self {
         ProjectPrivateMetadata {
+            r#type: ProjectType::default(),
             limit: ProjectRequestLimit::default(),
             // container settings
             image: KIT_IMAGE.to_string(),
@@ -111,6 +135,7 @@ impl Default for OrganizationMetadata {
 pub struct PCreateProject {
     /// must be unique
     pub name: String,
+    pub r#type: ProjectType,
 }
 
 // server
@@ -142,6 +167,16 @@ impl Database {
                 timestamp VARCHAR(1000000),
                 private_metadata VARCHAR(1000000),
                 metadata VARCHAR(1000000)
+            )",
+        )
+        .execute(c)
+        .await;
+
+        let _ = sqlquery(
+            "CREATE TABLE IF NOT EXISTS \"ProjectFiles\" (
+                project VARCHAR(1000000),
+                path VARCHAR(1000000),
+                content BLOB
             )",
         )
         .execute(c)
@@ -310,8 +345,14 @@ impl Database {
 
         for row in res.unwrap() {
             let row = self.base.textify_row(row).data;
+            let metadata = serde_json::from_str::<ProjectPrivateMetadata>(
+                row.get("private_metadata").unwrap(),
+            )
+            .unwrap();
+
             full_res.push(PCreateProject {
                 name: row.get("name").unwrap().to_string(),
+                r#type: metadata.r#type,
             });
         }
 
@@ -531,9 +572,8 @@ impl Database {
 
         // make sure we can do this
         let user = ua.unwrap().unwrap();
-        let can_edit: bool =
-            // using "metadata" here likely prohibits us from changing board owner
-            (user.user.username == project.owner) | (user.level.permissions.contains(&String::from("VIB:Admin")));
+        let can_edit: bool = (user.user.username == project.owner)
+            | (user.level.permissions.contains(&String::from("VIB:Admin")));
 
         if can_edit == false {
             return DefaultReturn {
@@ -635,9 +675,8 @@ impl Database {
         // make sure we can do this
         if ua.is_some() {
             let user = ua.unwrap().unwrap();
-            let can_edit: bool =
-                // using "metadata" here likely prohibits us from changing board owner
-                (user.user.username == project.owner) | (user.level.permissions.contains(&String::from("VIB:Admin")));
+            let can_edit: bool = (user.user.username == project.owner)
+                | (user.level.permissions.contains(&String::from("VIB:Admin")));
 
             if can_edit == false {
                 return DefaultReturn {
@@ -732,9 +771,8 @@ impl Database {
         // make sure we can do this
         if ua.is_some() {
             let user = ua.unwrap().unwrap();
-            let can_delete: bool =
-                // using "metadata" here likely prohibits us from changing board owner
-                (user.user.username == project.owner) | (user.level.permissions.contains(&String::from("VIB:Admin")));
+            let can_delete: bool = (user.user.username == project.owner)
+                | (user.level.permissions.contains(&String::from("VIB:Admin")));
 
             if can_delete == false {
                 return DefaultReturn {
@@ -789,7 +827,411 @@ impl Database {
         };
     }
 
+    // files
+
+    // GET
+    /// Get a file by `path` in the given [`Project`]
+    pub async fn get_file_in_project(
+        &self,
+        name: String,
+        mut path: String,
+    ) -> DefaultReturn<Option<Vec<u8>>> {
+        // get project
+        let existing = self.get_project_by_id(name.clone()).await;
+
+        if existing.success == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Project does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        // incr project requests
+        self.incr_project_requests(name.clone()).await;
+
+        // check path
+        if path == "/" {
+            path = String::from("/index.html");
+        } else if !path.starts_with("/") {
+            path = format!("/{}", path);
+        }
+
+        // check in cache
+        let cached = self
+            .base
+            .cachedb
+            .get(format!("project:{}:path:{}", name, path))
+            .await;
+
+        if cached.is_some() {
+            // ...
+            let content = cached.unwrap();
+
+            // decode
+            let bytes = base64::engine::general_purpose::STANDARD.decode(content);
+
+            if bytes.is_err() {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from(bytes.err().unwrap().to_string()),
+                    payload: Option::None,
+                };
+            }
+
+            let bytes = bytes.unwrap();
+
+            // return
+            return DefaultReturn {
+                success: true,
+                message: path,
+                payload: Option::Some(bytes),
+            };
+        }
+
+        // ...
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
+            "SELECT * FROM \"ProjectFiles\" WHERE \"project\" = ? AND \"path\" = ?"
+        } else {
+            "SELECT * FROM \"ProjectFiles\" WHERE \"project\" = $1 AND \"path\" = $2"
+        };
+
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
+            .bind::<&String>(&name)
+            .bind::<&String>(&path)
+            .fetch_one(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let row = res.unwrap();
+        let row = self.base.textify_row(row).data;
+
+        // ...
+        let original_base64 = row.get("content").unwrap();
+        let bytes = base64::engine::general_purpose::URL_SAFE.decode(original_base64);
+
+        if bytes.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(bytes.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
+        let bytes = bytes.unwrap();
+
+        // store in cache
+        self.base
+            .cachedb
+            .set(
+                format!("project:{}:path:{}", name, path),
+                original_base64.to_string(),
+            )
+            .await;
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Path exists"),
+            payload: Option::Some(bytes),
+        };
+    }
+
+    /// Get all file (names) in the given [`Project`]
+    pub async fn get_project_files(&self, name: String) -> DefaultReturn<Vec<String>> {
+        // get project
+        let existing = self.get_project_by_id(name.clone()).await;
+
+        if existing.success == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Project does not exist!"),
+                payload: Vec::new(),
+            };
+        }
+
+        // incr project requests
+        // self.incr_project_requests(name.clone()).await;
+
+        // check in cache
+        // let cached = self
+        //     .base
+        //     .cachedb
+        //     .get(format!("project:{}:path:{}", name, path))
+        //     .await;
+
+        // if cached.is_some() {
+        //     // ...
+        //     let content = cached.unwrap();
+
+        //     // decode
+        //     let bytes = base64::engine::general_purpose::URL_SAFE.decode(content);
+
+        //     if bytes.is_err() {
+        //         return DefaultReturn {
+        //             success: false,
+        //             message: String::from(bytes.err().unwrap().to_string()),
+        //             payload: Option::None,
+        //         };
+        //     }
+
+        //     let bytes = bytes.unwrap();
+
+        //     // return
+        //     return DefaultReturn {
+        //         success: true,
+        //         message: path,
+        //         payload: Option::Some(bytes),
+        //     };
+        // }
+
+        // ...
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
+            "SELECT \"path\" FROM \"ProjectFiles\" WHERE \"project\" = ?"
+        } else {
+            "SELECT \"path\" FROM \"ProjectFiles\" WHERE \"project\" = $1"
+        };
+
+        let c = &self.base.db.client;
+        let res = sqlquery(query).bind::<&String>(&name).fetch_all(c).await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Vec::new(),
+            };
+        }
+
+        // ...
+        // build res
+        let mut full_res: Vec<String> = Vec::new();
+
+        for row in res.unwrap() {
+            let row = self.base.textify_row(row).data;
+            full_res.push(row.get("path").unwrap().to_string());
+        }
+
+        // store in cache
+        // self.base
+        //     .cachedb
+        //     .set(
+        //         format!("project:{}:files", name),
+        //         original_base64.to_string(),
+        //     )
+        //     .await;
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Files exist"),
+            payload: full_res,
+        };
+    }
+
+    // SET
+    /// Update (or create) a file by `path` in the given [`Project`]
+    pub async fn store_file_in_project(
+        &self,
+        name: String,
+        mut path: String,
+        content: String, // base64 content
+        edit_as: Option<String>,
+    ) -> DefaultReturn<Option<String>> {
+        // get project
+        let existing = self.get_project_by_id(name.clone()).await;
+
+        if existing.success == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Project does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        let project = existing.payload.unwrap();
+
+        // get edit_as user account
+        let ua = if edit_as.is_some() {
+            Option::Some(
+                self.auth
+                    .get_user_by_username(edit_as.clone().unwrap())
+                    .await
+                    .payload,
+            )
+        } else {
+            Option::None
+        };
+
+        if ua.is_none() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("An account is required to do this"),
+                payload: Option::None,
+            };
+        }
+
+        // make sure we can do this
+        let user = ua.unwrap().unwrap();
+        let can_edit: bool = (user.user.username == project.owner)
+            | (user.level.permissions.contains(&String::from("VIB:Admin")));
+
+        if can_edit == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from(
+                    "You do not have permission to manage this project's contents.",
+                ),
+                payload: Option::None,
+            };
+        }
+
+        // check path
+        if !path.starts_with("/") {
+            path = format!("/{}", path);
+        }
+
+        // ...
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
+            "INSERT INTO \"ProjectFiles\" VALUES (?, ?, ?)"
+        } else {
+            "INSERT INTO \"ProjectFiles\" VALUES ($1, $2, $3)"
+        };
+
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
+            .bind::<&String>(&name)
+            .bind::<&String>(&path)
+            .bind::<&String>(&content)
+            .execute(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
+        // store in cache
+        self.base
+            .cachedb
+            .set(format!("project:{}:path:{}", name, path), content)
+            .await;
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("File inserted"),
+            payload: Option::Some(path),
+        };
+    }
+
+    /// Delete a file by `path` in the given [`Project`]
+    pub async fn delete_file_in_project(
+        &self,
+        name: String,
+        path: String,
+        edit_as: Option<String>,
+    ) -> DefaultReturn<Option<String>> {
+        // get project
+        let existing = self.get_project_by_id(name.clone()).await;
+
+        if existing.success == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Project does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        let project = existing.payload.unwrap();
+
+        // get edit_as user account
+        let ua = if edit_as.is_some() {
+            Option::Some(
+                self.auth
+                    .get_user_by_username(edit_as.clone().unwrap())
+                    .await
+                    .payload,
+            )
+        } else {
+            Option::None
+        };
+
+        if ua.is_none() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("An account is required to do this"),
+                payload: Option::None,
+            };
+        }
+
+        // make sure we can do this
+        let user = ua.unwrap().unwrap();
+        let can_edit: bool = (user.user.username == project.owner)
+            | (user.level.permissions.contains(&String::from("VIB:Admin")));
+
+        if can_edit == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from(
+                    "You do not have permission to manage this project's contents.",
+                ),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
+            "DELETE FROM \"ProjectFiles\" WHERE \"project\" = ? AND \"path\" = ?"
+        } else {
+            "DELETE FROM \"ProjectFiles\" WHERE \"project\" = $1 AND \"path\" = $2"
+        };
+
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
+            .bind::<&String>(&name)
+            .bind::<&String>(&path)
+            .execute(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
+        // remove from cache
+        self.base
+            .cachedb
+            .remove(format!("project:{}:path:{}", name, path))
+            .await;
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("File deleted"),
+            payload: Option::Some(path),
+        };
+    }
+
     // docker
+
+    // SET
+
     /// Create a Docker container for a given [`Project`]
     pub async fn create_project_container(
         &self,
@@ -810,6 +1252,15 @@ impl Database {
 
         // create container
         let mut metadata = existing.payload.unwrap().private_metadata;
+
+        if metadata.r#type != ProjectType::StaticContainer {
+            return DefaultReturn {
+                success: true,
+                message: String::from("Project is not a container project"),
+                payload: Option::None,
+            };
+        }
+
         let res = daemon
             .create_container::<&str, &str>(
                 Option::None,
@@ -872,7 +1323,17 @@ impl Database {
         }
 
         // get cid
-        let cid = existing.payload.unwrap().private_metadata.cid;
+        let metadata = existing.payload.unwrap().private_metadata;
+
+        if metadata.r#type != ProjectType::StaticContainer {
+            return DefaultReturn {
+                success: true,
+                message: String::from("Project is not a container project"),
+                payload: Option::None,
+            };
+        }
+
+        let cid = metadata.cid;
 
         if cid.is_none() {
             return DefaultReturn {
@@ -921,7 +1382,17 @@ impl Database {
         }
 
         // get cid
-        let cid = existing.payload.unwrap().private_metadata.cid;
+        let metadata = existing.payload.unwrap().private_metadata;
+
+        if metadata.r#type != ProjectType::StaticContainer {
+            return DefaultReturn {
+                success: true,
+                message: String::from("Project is not a container project"),
+                payload: Option::None,
+            };
+        }
+
+        let cid = metadata.cid;
 
         if cid.is_none() {
             return DefaultReturn {

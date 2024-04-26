@@ -6,6 +6,7 @@ use dotenv;
 pub mod api;
 pub mod db;
 pub mod pages;
+pub mod serve_middleware;
 
 use crate::db::AppData;
 
@@ -82,6 +83,7 @@ async fn main() -> std::io::Result<()> {
             // middleware
             .wrap(actix_web::middleware::Logger::default())
             .wrap(cors)
+            .wrap(serve_middleware::ServeAssets)
             // static dir
             .service(
                 fs::Files::new(
@@ -99,12 +101,15 @@ async fn main() -> std::io::Result<()> {
             // POST api
             .service(crate::api::auth::callback_request)
             .service(crate::api::projects::create_request)
+            .service(crate::api::projects::insert_file_request) // StaticFiles projects
             .service(crate::api::projects::edit_script_request)
             // DELETE api
+            .service(crate::api::projects::delete_file_request) // StaticFiles projects
             .service(crate::api::projects::delete_project_request)
             // GET api
             .service(crate::api::auth::logout)
             .service(crate::api::projects::get_script_request)
+            .service(crate::api::projects::read_file_request) // StaticFiles projects
             // GET root
             .service(crate::pages::home::home_request)
             .service(crate::pages::dashboard::dashboard_request)

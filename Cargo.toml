@@ -3,7 +3,7 @@ name = "vibrant"
 authors = ["hkau"]
 license = "MIT"
 
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 [features]
@@ -27,3 +27,5 @@ serde_json = "1.0.115"
 dorsal = { version = "0.1.2", registry = "stellular", default-features = false } # crates: disable-check
 regex = "1.10.4"
 bollard = "0.16.1"
+base64 = "0.22.0"
+futures-util = "0.3.30"

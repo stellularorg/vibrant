@@ -53,7 +53,7 @@ if (delete_button) {
         }
 
         loading_modal_inner.innerHTML =
-            "<b>Deleting container!</b> Please wait.";
+            "<b>Releasing resources!</b> Please wait.";
         loading_modal.showModal();
 
         const res = await fetch(delete_button.getAttribute("data-endpoint")!, {
@@ -69,6 +69,113 @@ if (delete_button) {
         } else {
             window.location.href = "/dashboard/projects";
         }
+    });
+}
+
+// file management
+for (const element of Array.from(
+    document.querySelectorAll(".load_file_info")
+)) {
+    element.addEventListener("click", () => {
+        const endpoint = element.getAttribute("data-file-endpoint")!;
+
+        (globalThis as any).delete_file = async () => {
+            if (
+                !confirm(
+                    "Are you sure you want to do this? It cannot be undone."
+                )
+            ) {
+                return;
+            }
+
+            loading_modal_inner.innerHTML =
+                "<b>Releasing resources!</b> Please wait.";
+            loading_modal.showModal();
+
+            const res = await fetch(endpoint, {
+                method: "DELETE",
+            });
+
+            loading_modal.close();
+
+            const json = await res.json();
+
+            if (json.success === false) {
+                alert(json.message);
+            } else {
+                window.location.reload();
+            }
+        };
+    });
+}
+
+const upload_button: HTMLButtonElement | null = document.getElementById(
+    "upload_file"
+) as HTMLButtonElement | null;
+
+function base64_file(input: File): Promise<String> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.addEventListener("loadend", () => {
+            resolve(
+                (reader.result as String)
+                    .replace("data:", "")
+                    .replace(/^.+,/, "")
+            );
+        });
+
+        reader.readAsDataURL(input);
+    });
+}
+
+if (upload_button) {
+    // upload file
+    upload_button.addEventListener("click", async (e) => {
+        e.preventDefault();
+
+        // get file
+        const file_input = document.createElement("input");
+        file_input.type = "file";
+        file_input.click();
+
+        file_input.addEventListener("change", async () => {
+            const file_base64 = await base64_file(file_input.files![0]);
+
+            // get path
+            const file_path = prompt("File path:");
+            if (!file_path) return;
+
+            file_input.remove();
+
+            // ...
+            loading_modal_inner.innerHTML =
+                "<b>Uploading file!</b> Please wait.";
+            loading_modal.showModal();
+
+            const res = await fetch(
+                `${upload_button.getAttribute("data-endpoint")!}/${file_path}`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        content: file_base64,
+                    }),
+                }
+            );
+
+            loading_modal.close();
+
+            const json = await res.json();
+
+            if (json.success === false) {
+                alert(json.message);
+            } else {
+                window.location.reload();
+            }
+        });
     });
 }
 

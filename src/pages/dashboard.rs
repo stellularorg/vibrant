@@ -52,6 +52,8 @@ struct ProjectsDashboardTemplate {
 #[template(path = "dashboard/project/view.html")]
 struct ProjectViewTemplate {
     project: Project,
+    files: Vec<String>,
+    asset_requests: String,
     // required fields (super::base)
     auth_state: bool,
     guppy: String,
@@ -234,6 +236,13 @@ pub async fn project_view_request(
         return super::errors::error404(req, data).await;
     }
 
+    // fetch project files
+    let files = data.db.get_project_files(project_name.to_string()).await;
+
+    if !files.success {
+        return super::errors::error404(req, data).await;
+    }
+
     // ...
     let base = base::get_base_values(token_user.is_some());
     return HttpResponse::Ok()
@@ -242,6 +251,14 @@ pub async fn project_view_request(
         .body(
             ProjectViewTemplate {
                 project: project.payload.unwrap(),
+                files: files.payload,
+                asset_requests: data
+                    .db
+                    .base
+                    .cachedb
+                    .get(format!("billing:requests:{}", project_name))
+                    .await
+                    .unwrap(),
                 // required fields
                 auth_state: base.auth_state,
                 guppy: base.guppy,

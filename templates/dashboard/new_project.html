@@ -25,6 +25,14 @@
             <input type="text" name="_name" id="_name" placeholder="project-name" class="full round" minlength="4"
                 maxlength="32" required="true" />
 
+            <label for="project_type"><b>Type</b></label>
+
+            <select name="project_type" id="project_type" class="full round" required>
+                <option value="StaticPackage" selected>Normal</option>
+                <!-- TODO: different account permission ("VIB:Containers") required -->
+                <option value="StaticContainer" disabled>Container</option>
+            </select>
+
             <hr />
 
             <button class="primary full round">

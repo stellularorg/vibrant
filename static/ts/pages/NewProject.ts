@@ -17,13 +17,19 @@ if (create_form) {
         e.preventDefault();
 
         loading_modal_inner.innerHTML =
-            "<b>Creating container!</b> Please wait.";
+            "<b>Provisioning resources!</b> Please wait.";
         loading_modal.showModal();
 
+        const project_type = create_form.project_type;
         const res = await fetch("/api/v1/projects", {
             method: "POST",
             body: JSON.stringify({
                 name: create_form._name.value,
+                type: (
+                    project_type.options[
+                        project_type.selectedIndex
+                    ] as HTMLOptionElement
+                ).value,
             }),
             headers: {
                 "Content-Type": "application/json",
