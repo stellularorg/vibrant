@@ -17,7 +17,7 @@
     <div class="flex justify-space-between align-center">
         <b>Projects</b>
 
-        <a class="button primary round" href="/dashboard/project/new">
+        <a class="button theme:primary round" href="/dashboard/project/new">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                 class="lucide lucide-plus-square">
@@ -31,7 +31,7 @@
 
     <div class="card round secondary flex g-4 flex-column justify-center" id="projects_list">
         {% for p in projects.iter() %}
-        <a class="button secondary round full justify-start" href="/dashboard/project/{{ p.name }}">
+        <a class="button no-shadow secondary round full justify-start" href="/dashboard/project/{{ p.name }}">
             {% if p.type == crate::db::ProjectType::StaticPackage %}
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -55,13 +55,7 @@
             </svg>
             {% endif %}
 
-            <div class="full flex justify-space-between">
-                {{ p.name }}
-
-                <span class="chip mention device:desktop">
-                    {{ p.type.to_string().replace("Static", "") }}
-                </span>
-            </div>
+            {{ p.name }}
         </a>
         {% endfor %}
     </div>

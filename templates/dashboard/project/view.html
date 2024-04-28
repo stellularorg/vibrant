@@ -32,7 +32,7 @@
         <div class="flex g-4 flex-wrap">
             {% if project.private_metadata.type == crate::db::ProjectType::StaticContainer %}
             <!-- containers -->
-            <button id="deploy" class="primary round" title="Run Deployment Script">
+            <button id="deploy" class="theme:primary round" title="Run Deployment Script">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                     class="lucide lucide-circle-play">
@@ -54,7 +54,7 @@
             </button>
             {% else %}
             <!-- normal -->
-            <a href="#files_list" class="button primary round" title="View Files">
+            <a href="#files_list" class="button theme:primary round" title="View Files">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                     class="lucide lucide-package-search">
@@ -105,7 +105,7 @@
         <h6 class="no-margin">Project Files</h6>
 
         <div class="flex g-4 flex-wrap">
-            <button id="upload_file" class="primary round" title="Upload File"
+            <button id="upload_file" class="theme:primary round" title="Upload File"
                 data-endpoint="/api/v1/project/{{ project.name }}/files">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -196,7 +196,7 @@
                 <textarea class="full round" name="script" id="script" placeholder="git clone ..." rows="10"
                     style="font-family: monospace; white-space: pre;">{{ project.metadata.script }}</textarea>
 
-                <button class="round primary">
+                <button class="round theme:primary">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                         class="lucide lucide-save">

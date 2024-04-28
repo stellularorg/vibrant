@@ -2,44 +2,78 @@
 {% block title %}Home{% endblock %}
 
 {% block content %}
-<div id="link-header" style="display: flex;" class="flex-column bg-1">
+<div id="link-header" style="display: flex;" class="flex-column bg-1 tall">
     <div class="link-header-top"></div>
-    <div class="link-header-middle flex align-center flex-column g-4">
-        <h1 class="no-margin">Open PaaS <em style="font-weight: normal;">for</em> Static Sites</h1>
+    <div class="link-header-middle flex align-center flex-column g-8">
+        <h2 class="no-margin">Let's mix up hosting!</h2>
 
         <div class="flex g-4 flex-wrap">
             {% if auth_state == false %}
-            <a href="{{ guppy }}/d/auth/login" class="button green-cta round" data-wants-redirect="true">Login</a>
-            <a href="{{ guppy }}/d/auth/register" class="button green secondary round"
-                data-wants-redirect="true">Register</a>
+            <a href="{{ guppy }}/d/auth/login" class="button theme:primary round" data-wants-redirect="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="lucide lucide-log-in">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                    <polyline points="10 17 15 12 10 7" />
+                    <line x1="15" x2="3" y1="12" y2="12" />
+                </svg>
+                Login
+            </a>
+            <a href="{{ guppy }}/d/auth/register" class="button theme:secondary round" data-wants-redirect="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="lucide lucide-user-plus">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <line x1="19" x2="19" y1="8" y2="14" />
+                    <line x1="22" x2="16" y1="11" y2="11" />
+                </svg>
+                Register
+            </a>
             {% else %}
-            <a href="/dashboard" class="button primary round">My Dashboard</a>
+            <a href="/dashboard" class="button theme:primary round">
+                My Dashboard
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="lucide lucide-arrow-right">
+                    <path d="M5 12h14" />
+                    <path d="m12 5 7 7-7 7" />
+                </svg>
+            </a>
             {% endif %}
         </div>
     </div>
     <div class="link-header-bottom"></div>
 </div>
 
-<main class="small">
+<main class="small flex flex-column g-4">
     <div class="card secondary round flex flex-column g-4">
-        <details class="round border">
+        <details class="round border" open>
             <summary>What?</summary>
 
             <div class="card">
-                <p>
+                <p>What
                     Vibrant organizes each site into "projects" the static assets that are served for each site. Vibrant
                     only supports <em>static</em> (meaning no server interaction) websites <b>for now</b>.
                 </p>
+            </div>
+        </details>
 
+        <details class="round border" open>
+            <summary>Why?</summary>
+
+            <div class="card">
                 <p>
-                    Each site is given a certain amount of available requests per month at the start of each month
-                    (starting
-                    the day the project is created). The basic normal limit is <code>1,000,000</code> requests per
-                    month!
-                    This can be upgraded to <code>100,000,000</code> or no limit, depending on the options made
-                    available by
-                    this server.
+                    Web hosting has become boring! Vibrant aims to provide meaningful hosting that allows you to
+                    interconnect many services at once:
                 </p>
+
+                <ul>
+                    <li>Web hosting</li>
+                    <li>Database hosting (soon)</li>
+                    <li>File hosting (soon)</li>
+                    <li>Container hosting (soon)</li>
+                </ul>
             </div>
         </details>
 
@@ -53,6 +87,27 @@
                         card
                         <a href="https://stellular.net/+oss/misc.html#vibrant">here</a>.</em>
                 </p>
+            </div>
+        </details>
+    </div>
+
+    <div class="card secondary round flex flex-column g-4">
+        <details class="round border">
+            <summary>Limits</summary>
+
+            <div class="card">
+                <p>
+                    Each site is given a certain amount of available requests per month at the start of each month
+                    (starting
+                    the day the project is created). The basic normal limit is <code>1,000,000</code> requests per
+                    month!
+                    This can be upgraded to <code>100,000,000</code> or no limit, depending on the options made
+                    available by
+                    this server.
+                </p>
+
+                <p>Exceeding this request limit will cause the site to stop serving requests until the end of its
+                    request period.</p>
             </div>
         </details>
     </div>
