@@ -55,6 +55,29 @@ impl std::fmt::Display for ProjectType {
     }
 }
 
+// base structures
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ProjectFilePrivacy {
+    /// project files can be LISTED and VIEWED by everybody
+    Public,
+    /// project files can be LISTED by nobody and VIEWED by everybody
+    Confidential,
+    /// project files require authentication to VIEWED; files can only be VIEWED by project owner
+    Private,
+}
+
+impl Default for ProjectFilePrivacy {
+    fn default() -> Self {
+        ProjectFilePrivacy::Public
+    }
+}
+
+impl std::fmt::Display for ProjectFilePrivacy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Project {
     /// basically the project ID (no spaces, must be unique)
@@ -99,12 +122,15 @@ pub struct ProjectMetadata {
     /// Simple bash script to run deployment commands
     #[serde(default)]
     pub script: String,
+    #[serde(default)]
+    pub file_privacy: ProjectFilePrivacy,
 }
 
 impl Default for ProjectMetadata {
     fn default() -> Self {
         ProjectMetadata {
             script: String::new(),
+            file_privacy: ProjectFilePrivacy::default(),
         }
     }
 }
@@ -1039,7 +1065,7 @@ impl Database {
     }
 
     // SET
-    /// Update (or create) a file by `path` in the given [`Project`]
+    /// Create a file by `path` in the given [`Project`]
     pub async fn store_file_in_project(
         &self,
         name: String,
@@ -1133,6 +1159,104 @@ impl Database {
         return DefaultReturn {
             success: true,
             message: String::from("File inserted"),
+            payload: Option::Some(path),
+        };
+    }
+
+    /// Update a file by `path` in the given [`Project`]
+    pub async fn update_file_in_project(
+        &self,
+        name: String,
+        mut path: String,
+        content: String, // base64 content
+        edit_as: Option<String>,
+    ) -> DefaultReturn<Option<String>> {
+        // get project
+        let existing = self.get_project_by_id(name.clone()).await;
+
+        if existing.success == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Project does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        let project = existing.payload.unwrap();
+
+        // get edit_as user account
+        let ua = if edit_as.is_some() {
+            Option::Some(
+                self.auth
+                    .get_user_by_username(edit_as.clone().unwrap())
+                    .await
+                    .payload,
+            )
+        } else {
+            Option::None
+        };
+
+        if ua.is_none() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("An account is required to do this"),
+                payload: Option::None,
+            };
+        }
+
+        // make sure we can do this
+        let user = ua.unwrap().unwrap();
+        let can_edit: bool = (user.user.username == project.owner)
+            | (user.level.permissions.contains(&String::from("VIB:Admin")));
+
+        if can_edit == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from(
+                    "You do not have permission to manage this project's contents.",
+                ),
+                payload: Option::None,
+            };
+        }
+
+        // check path
+        if !path.starts_with("/") {
+            path = format!("/{}", path);
+        }
+
+        // ...
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
+            "UPDATE \"ProjectFiles\" SET \"content\" = ? WHERE \"project\" = ? AND \"path\" = ?"
+        } else {
+            "UPDATE \"ProjectFiles\" SET (\"content\") = ($1) WHERE \"project\" = $2 AND \"path\" = $3"
+        };
+
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
+            .bind::<&String>(&content)
+            .bind::<&String>(&name)
+            .bind::<&String>(&path)
+            .execute(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
+        // store in cache
+        self.base
+            .cachedb
+            .set(format!("project:{}:path:{}", name, path), content)
+            .await;
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("File updated"),
             payload: Option::Some(path),
         };
     }

@@ -803,9 +803,9 @@ dependencies = [
 
 [[package]]
 name = "dorsal"
-version = "0.1.2"
+version = "0.1.3"
 source = "sparse+https://code.stellular.org/api/packages/stellular/cargo/"
-checksum = "0d253bc6e5a694e5481e85c02c4129cb57e74592bcce301b2f9797a08cdb848b"
+checksum = "c554ab8ead0fe1a9d5376334c9d8ad54e57b3d03226f029a17ccab76ce01cd86"
 dependencies = [
  "hex_fmt",
  "redis",

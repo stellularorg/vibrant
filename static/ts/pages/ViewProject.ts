@@ -179,5 +179,17 @@ if (upload_button) {
     });
 }
 
+// live url
+const live_url = document.getElementById(
+    "live_url"
+) as HTMLAnchorElement | null;
+
+if (live_url) {
+    live_url.href = `${window.location.protocol}//${live_url.getAttribute(
+        "data-project"
+    )!}.get.${window.location.host}`;
+    live_url.innerText = live_url.href;
+}
+
 // default export
 export default {};

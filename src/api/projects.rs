@@ -1,6 +1,7 @@
 use crate::db::{AppData, PCreateProject};
 use actix_files::file_extension_to_mime;
-use actix_web::{delete, get, post, web, HttpRequest, HttpResponse, Responder};
+use actix_web::{delete, get, post, put, web, HttpRequest, HttpResponse, Responder};
+use dorsal::DefaultReturn;
 use serde::{Deserialize, Serialize};
 
 use crate::pages::base;
@@ -154,6 +155,38 @@ pub struct PAddFile {
     pub content: String,
 }
 
+#[get("/api/v1/project/{name:.*}/files")]
+/// Project file listing
+pub async fn get_project_files_request(
+    req: HttpRequest,
+    data: web::Data<AppData>,
+) -> impl Responder {
+    let project_name = req.match_info().get("name").unwrap();
+
+    // verify auth status
+    let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
+
+    if token_user.is_none() {
+        return HttpResponse::NotAcceptable().body("An account is required to edit projects.");
+    }
+
+    // ...
+    let res = data.db.get_project_files(project_name.to_string()).await;
+
+    if res.success == false {
+        return HttpResponse::NotFound()
+            .append_header(("Content-Type", "text/plain"))
+            .append_header(("Set-Cookie", set_cookie))
+            .body(res.message);
+    }
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .append_header(("Set-Cookie", set_cookie))
+        .body(serde_json::to_string::<DefaultReturn<Vec<String>>>(&res).unwrap());
+}
+
 #[get("/api/v1/project/{name:.*}/files/{path:.*}")]
 /// Read a file from a project
 pub async fn read_file_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
@@ -232,6 +265,62 @@ pub async fn insert_file_request(
     let res = data
         .db
         .store_file_in_project(
+            project_name.to_string(),
+            path.to_string(),
+            body.content.clone(),
+            if token_user.is_some() {
+                Option::Some(token_user.unwrap().payload.unwrap().user.username)
+            } else {
+                Option::None
+            },
+        )
+        .await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .append_header(("Set-Cookie", set_cookie))
+        .body(serde_json::to_string(&res).unwrap());
+}
+
+#[put("/api/v1/project/{name:.*}/files/{path:.*}")]
+/// Update a file in a project
+pub async fn update_file_request(
+    req: HttpRequest,
+    body: web::Json<PAddFile>,
+    data: web::Data<AppData>,
+) -> impl Responder {
+    let project_name = req.match_info().get("name").unwrap();
+    let path = req.match_info().get("path").unwrap();
+
+    // verify auth status
+    let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
+
+    if token_user.is_none() {
+        return HttpResponse::NotAcceptable().body("An account is required to edit projects.");
+    }
+
+    // check size
+    // file must be less than or equal to 1 MB
+    let content_length = req.headers().get("Content-Length");
+
+    if content_length.is_none()
+        | (std::str::from_utf8(content_length.unwrap().as_bytes())
+            .unwrap()
+            .parse::<usize>()
+            .unwrap()
+            > 1_048_576)
+    {
+        return HttpResponse::PayloadTooLarge()
+            .append_header(("Content-Type", "text/plain"))
+            .append_header(("Set-Cookie", set_cookie))
+            .body("Payload is too large.");
+    }
+
+    // ...
+    let res = data
+        .db
+        .update_file_in_project(
             project_name.to_string(),
             path.to_string(),
             body.content.clone(),

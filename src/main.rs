@@ -103,12 +103,15 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::projects::create_request)
             .service(crate::api::projects::insert_file_request) // StaticFiles projects
             .service(crate::api::projects::edit_script_request)
+            // PUT api
+            .service(crate::api::projects::update_file_request) // StaticFiles projects
             // DELETE api
             .service(crate::api::projects::delete_file_request) // StaticFiles projects
             .service(crate::api::projects::delete_project_request)
             // GET api
             .service(crate::api::auth::logout)
             .service(crate::api::projects::get_script_request)
+            .service(crate::api::projects::get_project_files_request) // StaticFiles projects
             .service(crate::api::projects::read_file_request) // StaticFiles projects
             // GET root
             .service(crate::pages::home::home_request)

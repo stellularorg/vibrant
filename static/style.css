@@ -1,6 +1,10 @@
 /* https://codeberg.org/hkau/fusion */
 @import url("./css/fusion.css");
 
+:root {
+    --roundness: var(--u-02);
+}
+
 .tab-container {
     background: var(--background-surface1);
     transition: background 0.15s;
@@ -15,7 +19,7 @@
 
 .tabbar button:not(.full-normal),
 .tabbar .button:not(.full-normal) {
-    border-radius: var(--u-02) var(--u-02) 0 0;
+    border-radius: var(--roundness) var(--roundness) 0 0;
 }
 
 @media screen and (max-width: 900px) {
@@ -76,7 +80,7 @@ h6 {
 }
 
 *.round {
-    border-radius: var(--u-02) !important;
+    border-radius: var(--roundness) !important;
 }
 
 /* svg */
@@ -130,17 +134,17 @@ input + .button {
 
 /* details */
 details {
-    border-radius: var(--u-02);
+    border-radius: var(--roundness);
 }
 
 details[open] {
-    border-radius: var(--u-02) var(--u-02) 0 0 !important;
+    border-radius: var(--roundness) var(--roundness) 0 0 !important;
 }
 
 details summary {
     background: transparent;
     border: none;
-    border-radius: var(--u-02) !important;
+    border-radius: var(--roundness) !important;
     transition: none !important;
 }
 
@@ -164,7 +168,7 @@ details[open] summary {
     background: var(--background-surface1);
     box-shadow: none;
     margin-bottom: 0 !important;
-    border-radius: var(--u-02) var(--u-02) 0 0 !important;
+    border-radius: var(--roundness) var(--roundness) 0 0 !important;
 }
 
 details summary + .content {
@@ -175,7 +179,7 @@ details[open] summary + .content {
     border: solid 1px var(--background-surface2a);
     border-top: none;
     padding: var(--u-08);
-    border-radius: 0 0 var(--u-02) var(--u-02);
+    border-radius: 0 0 var(--roundness) var(--roundness);
     display: block;
 }
 
@@ -195,7 +199,7 @@ select {
 input.round,
 textarea.round,
 select.round {
-    border-radius: var(--u-02) !important;
+    border-radius: var(--roundness) !important;
 }
 
 input:focus,
@@ -206,12 +210,12 @@ select:focus {
 
 /* notes */
 .mdnote {
-    border-radius: var(--u-02) !important;
+    border-radius: var(--roundness) !important;
 }
 
 /* chips */
 .chip.mention {
-    border-radius: var(--u-02);
+    border-radius: var(--roundness);
     background: var(--background-surface2a);
     border: solid 1px var(--background-surface2);
     color: var(--text-color);
@@ -386,7 +390,7 @@ select:focus {
 /* code */
 pre {
     padding: var(--u-08);
-    border-radius: var(--u-04);
+    border-radius: var(--roundness);
 }
 
 pre,
@@ -397,7 +401,7 @@ pre code {
 /* avatar */
 .avatar {
     --size: 50px;
-    border-radius: var(--u-02);
+    border-radius: var(--roundness);
     width: var(--size);
     height: var(--size);
 }

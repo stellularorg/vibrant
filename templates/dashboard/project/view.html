@@ -1,11 +1,16 @@
 {% extends "base.html" %}
 {% block title %}{{ project.name }}{% endblock %}
 
+{% block toolbar %}
+<a href="/dashboard/project/{{ project.name }}" class="button">
+    {{ project.name }}
+</a>
+{% endblock %}
+
 {% block content %}
 <div id="link-header" style="display: flex;" class="flex-column bg-1">
     <div class="link-header-top"></div>
     <div class="link-header-middle flex flex-column g-4">
-        <span class="chip mention" style="width: max-content;">{{ project.owner }}</span>
         <h1 class="no-margin">{{ project.name }}</h1>
     </div>
     <div class="link-header-bottom">
@@ -87,6 +92,8 @@
             <li><b>CID</b>: {{ project.private_metadata.cid.clone().unwrap_or(String::from("Project does not own a
                 container")) }}</li>
             <li><b>Requests</b>: {{ asset_requests }}</li>
+            <li><b>Hosted</b>: <a id="live_url" data-project="{{ project.name }}" target="_blank" href="#"></a></li>
+            <li><b>File Privacy</b>: {{ project.metadata.file_privacy }}</li>
         </ul>
     </div>
 
@@ -125,7 +132,7 @@
         <tbody>
             {% for f in files.iter() %}
             <tr>
-                <td><a href="/api/v1/project/{{ project.name }}/files/{{ f }}">{{ f }}</a></td>
+                <td><a href="/api/v1/project/{{ project.name }}/files{{ f }}">{{ f }}</a></td>
 
                 <td class="flex g-4 flex-wrap">
                     <button class="secondary round load_file_info" data-dialog="manage_file"

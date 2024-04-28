@@ -258,7 +258,7 @@ pub async fn project_view_request(
                     .cachedb
                     .get(format!("billing:requests:{}", project_name))
                     .await
-                    .unwrap(),
+                    .unwrap_or("0".to_string()),
                 // required fields
                 auth_state: base.auth_state,
                 guppy: base.guppy,
