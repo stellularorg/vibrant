@@ -9,6 +9,7 @@ struct HomeTemplate {
     // required fields (super::base)
     auth_state: bool,
     guppy: String,
+bundlrs: String,
     body_embed: String,
 }
 
@@ -27,6 +28,7 @@ pub async fn home_request(req: HttpRequest, data: web::Data<crate::db::AppData>)
                 // required fields
                 auth_state: base.auth_state,
                 guppy: base.guppy,
+bundlrs: base.bundlrs,
                 body_embed: base.body_embed,
             }
             .render()

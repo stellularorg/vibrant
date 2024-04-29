@@ -2,6 +2,8 @@
 
 License card: <https://stellular.net/+oss/misc.html#vibrant>
 
+Vibrant is the second version of Bundlrs *atomic* pastes. Vibrant can be integrated into Bundlrs through the `VIBRANT_ROOT` environment variable. Vibrant also requires you provide a `BUNDLRS_ROOT` environment variable when running.
+
 ## Configuration
 
 Many configuration options for databases can be found [here](https://code.stellular.org/stellular/bundlrs#configuration), this will just detail Vibrant-specific configuration options.

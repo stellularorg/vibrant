@@ -96,6 +96,18 @@
                 dashboard
             </a>
 
+            <a href="{{ bundlrs }}/dashboard" class="button full round border justify-start">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="lucide lucide-layout-dashboard">
+                    <rect width="7" height="9" x="3" y="3" rx="1" />
+                    <rect width="7" height="5" x="14" y="3" rx="1" />
+                    <rect width="7" height="9" x="14" y="12" rx="1" />
+                    <rect width="7" height="5" x="3" y="16" rx="1" />
+                </svg>
+                global dashboard
+            </a>
+
             <a href="/api/auth/logout" class="button red full round border justify-start">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -125,7 +137,7 @@
     </div>
 
     <!-- toolbar -->
-    <div class="toolbar flex justify-space-between">
+    <div class="toolbar flex justify-space-between" {% block toolbar_stuff %}{% endblock %}>
         <div class="flex">
             <button title="Menu" onclick="window.toggle_child_menu(event.target, '#upper\\:globalmenu')"
                 style="border: 0">

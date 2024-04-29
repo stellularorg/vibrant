@@ -194,11 +194,7 @@ pub async fn read_file_request(req: HttpRequest, data: web::Data<AppData>) -> im
     let path = req.match_info().get("path").unwrap();
 
     // verify auth status
-    let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
-
-    if token_user.is_none() {
-        return HttpResponse::NotAcceptable().body("An account is required to edit projects.");
-    }
+    let (set_cookie, _, _) = base::check_auth_status(req.clone(), data.clone()).await;
 
     // ...
     let res = data
@@ -212,6 +208,93 @@ pub async fn read_file_request(req: HttpRequest, data: web::Data<AppData>) -> im
             .append_header(("Set-Cookie", set_cookie))
             .body(res.message);
     }
+
+    // incr project requests
+    data.db
+        .incr_project_requests(project_name.to_string())
+        .await;
+
+    // get file extension from path
+    let ext = path
+        .split(".")
+        .collect::<Vec<&str>>()
+        .pop()
+        .unwrap_or("txt");
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", file_extension_to_mime(ext)))
+        .append_header(("Set-Cookie", set_cookie))
+        .body(res.payload.unwrap());
+}
+
+#[get("/{name:.*}")]
+/// Read a file from a project
+pub async fn read_project_global_request(
+    req: HttpRequest,
+    data: web::Data<AppData>,
+) -> impl Responder {
+    let project_name = req.match_info().get("name").unwrap();
+    let path = "/index.html";
+
+    // verify auth status
+    let (set_cookie, _, _) = base::check_auth_status(req.clone(), data.clone()).await;
+
+    // ...
+    let res = data
+        .db
+        .get_file_in_project(project_name.to_string(), path.to_string())
+        .await;
+
+    if res.success == false {
+        return crate::pages::errors::error404(req, data).await;
+    }
+
+    // incr project requests
+    data.db
+        .incr_project_requests(project_name.to_string())
+        .await;
+
+    // get file extension from path
+    let ext = path
+        .split(".")
+        .collect::<Vec<&str>>()
+        .pop()
+        .unwrap_or("txt");
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", file_extension_to_mime(ext)))
+        .append_header(("Set-Cookie", set_cookie))
+        .body(res.payload.unwrap());
+}
+
+#[get("/{name:.*}/{path:.*}")]
+/// Read a file from a project
+pub async fn read_file_global_request(
+    req: HttpRequest,
+    data: web::Data<AppData>,
+) -> impl Responder {
+    let project_name = req.match_info().get("name").unwrap();
+    let path = req.match_info().get("path").unwrap();
+
+    // verify auth status
+    let (set_cookie, _, _) = base::check_auth_status(req.clone(), data.clone()).await;
+
+    // ...
+    let res = data
+        .db
+        .get_file_in_project(project_name.to_string(), path.to_string())
+        .await;
+
+    if res.success == false {
+        return crate::pages::errors::error404(req, data).await;
+    }
+
+    // incr project requests
+    data.db
+        .incr_project_requests(project_name.to_string())
+        .await;
 
     // get file extension from path
     let ext = path

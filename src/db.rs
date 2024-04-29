@@ -446,6 +446,15 @@ impl Database {
             };
         }
 
+        // project cannot have names we may need
+        if ["dashboard", "api"].contains(&props.name.as_str()) {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Name is invalid"),
+                payload: Option::None,
+            };
+        }
+
         // make sure project does not exist
         let existing = self.get_project_by_id(props.name.clone()).await;
 
@@ -832,8 +841,30 @@ impl Database {
         // remove container
         self.remove_project_container(name.clone(), daemon).await;
 
+        // remove files
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
+            "DELETE FROM \"ProjectFiles\" WHERE \"project\" = ?"
+        } else {
+            "DELETE FROM \"ProjectFiles\" WHERE \"project\" = $2"
+        };
+
+        let c = &self.base.db.client;
+        let res = sqlquery(query).bind::<&String>(&name).execute(c).await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
         // update cache
-        self.base.cachedb.remove(format!("project:{}", name)).await;
+        // self.base.cachedb.remove(format!("project:{}", name)).await;
+        self.base
+            .cachedb
+            .remove_starting_with(format!("project:{}*", name))
+            .await;
 
         if delete_as.is_some() {
             self.base
@@ -872,9 +903,6 @@ impl Database {
                 payload: Option::None,
             };
         }
-
-        // incr project requests
-        self.incr_project_requests(name.clone()).await;
 
         // check path
         if path == "/" {

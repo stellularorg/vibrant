@@ -5,6 +5,7 @@ use crate::db::AppData;
 pub struct BaseTemplate {
     pub auth_state: bool,
     pub guppy: String,
+    pub bundlrs: String,
     pub body_embed: String,
 }
 
@@ -20,6 +21,7 @@ pub fn get_base_values(token_cookie: bool) -> BaseTemplate {
     BaseTemplate {
         auth_state: token_cookie,
         guppy: std::env::var("GUPPY_ROOT").unwrap(),
+        bundlrs: std::env::var("BUNDLRS_ROOT").unwrap(),
         body_embed,
     }
 }

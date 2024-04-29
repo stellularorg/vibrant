@@ -12,6 +12,7 @@ const output = await build({
         "./static/ts/pages/Footer.ts",
         "./static/ts/pages/NewProject.ts",
         "./static/ts/pages/ViewProject.ts",
+        "./static/ts/editors/FileEditor.ts",
     ],
     minify: {
         identifiers: true,

@@ -16,6 +16,7 @@ struct AuthPickerTemplate {
     // required fields (super::base)
     auth_state: bool,
     guppy: String,
+    bundlrs: String,
     body_embed: String,
 }
 
@@ -25,6 +26,7 @@ struct DashboardTemplate {
     // required fields (super::base)
     auth_state: bool,
     guppy: String,
+    bundlrs: String,
     body_embed: String,
 }
 
@@ -34,6 +36,7 @@ struct NewProjectTemplate {
     // required fields (super::base)
     auth_state: bool,
     guppy: String,
+    bundlrs: String,
     body_embed: String,
 }
 
@@ -45,6 +48,7 @@ struct ProjectsDashboardTemplate {
     // required fields (super::base)
     auth_state: bool,
     guppy: String,
+    bundlrs: String,
     body_embed: String,
 }
 
@@ -57,6 +61,20 @@ struct ProjectViewTemplate {
     // required fields (super::base)
     auth_state: bool,
     guppy: String,
+    bundlrs: String,
+    body_embed: String,
+}
+
+#[derive(Template)]
+#[template(path = "dashboard/project/editor.html")]
+struct ProjectFileEditorTemplate {
+    project: Project,
+    file_path: String,
+    file_content: String,
+    // required fields (super::base)
+    auth_state: bool,
+    guppy: String,
+    bundlrs: String,
     body_embed: String,
 }
 
@@ -78,6 +96,7 @@ pub async fn dashboard_request(
                     // required fields
                     auth_state: base.auth_state,
                     guppy: base.guppy,
+                    bundlrs: base.bundlrs,
                     body_embed: base.body_embed,
                 }
                 .render()
@@ -95,6 +114,7 @@ pub async fn dashboard_request(
                 // required fields
                 auth_state: base.auth_state,
                 guppy: base.guppy,
+                bundlrs: base.bundlrs,
                 body_embed: base.body_embed,
             }
             .render()
@@ -120,6 +140,7 @@ pub async fn new_project_request(
                     // required fields
                     auth_state: base.auth_state,
                     guppy: base.guppy,
+                    bundlrs: base.bundlrs,
                     body_embed: base.body_embed,
                 }
                 .render()
@@ -137,6 +158,7 @@ pub async fn new_project_request(
                 // required fields
                 auth_state: base.auth_state,
                 guppy: base.guppy,
+                bundlrs: base.bundlrs,
                 body_embed: base.body_embed,
             }
             .render()
@@ -163,6 +185,7 @@ pub async fn projects_dashboard_request(
                     // required fields
                     auth_state: base.auth_state,
                     guppy: base.guppy,
+                    bundlrs: base.bundlrs,
                     body_embed: base.body_embed,
                 }
                 .render()
@@ -195,6 +218,7 @@ pub async fn projects_dashboard_request(
                 // required fields
                 auth_state: base.auth_state,
                 guppy: base.guppy,
+                bundlrs: base.bundlrs,
                 body_embed: base.body_embed,
             }
             .render()
@@ -222,6 +246,7 @@ pub async fn project_view_request(
                     // required fields
                     auth_state: base.auth_state,
                     guppy: base.guppy,
+                    bundlrs: base.bundlrs,
                     body_embed: base.body_embed,
                 }
                 .render()
@@ -262,6 +287,78 @@ pub async fn project_view_request(
                 // required fields
                 auth_state: base.auth_state,
                 guppy: base.guppy,
+                bundlrs: base.bundlrs,
+                body_embed: base.body_embed,
+            }
+            .render()
+            .unwrap(),
+        );
+}
+
+#[get("/dashboard/project/{project:.*}/edit/{path:.*}")]
+pub async fn project_file_editor_request(
+    req: HttpRequest,
+    data: web::Data<crate::db::AppData>,
+) -> impl Responder {
+    let project_name = req.match_info().get("project").unwrap();
+    let path = req.match_info().get("path").unwrap();
+
+    // verify auth status
+    let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
+
+    if token_user.is_none() {
+        let base = base::get_base_values(token_user.is_some());
+        return HttpResponse::NotAcceptable()
+            .append_header(("Set-Cookie", set_cookie))
+            .append_header(("Content-Type", "text/html"))
+            .body(
+                AuthPickerTemplate {
+                    // required fields
+                    auth_state: base.auth_state,
+                    guppy: base.guppy,
+                    bundlrs: base.bundlrs,
+                    body_embed: base.body_embed,
+                }
+                .render()
+                .unwrap(),
+            );
+    }
+
+    // fetch project
+    let project = data.db.get_project_by_id(project_name.to_string()).await;
+
+    if !project.success {
+        return super::errors::error404(req, data).await;
+    }
+
+    // fetch project files
+    let file = data
+        .db
+        .get_file_in_project(project_name.to_string(), path.to_string())
+        .await;
+
+    if !file.success {
+        return super::errors::error404(req, data).await;
+    }
+
+    let payload = file.payload.unwrap();
+    let as_str = std::str::from_utf8(&payload)
+        .unwrap_or("Failed to read file as UTF-8 string");
+
+    // ...
+    let base = base::get_base_values(token_user.is_some());
+    return HttpResponse::Ok()
+        .append_header(("Set-Cookie", set_cookie))
+        .append_header(("Content-Type", "text/html"))
+        .body(
+            ProjectFileEditorTemplate {
+                project: project.payload.unwrap(),
+                file_path: path.to_string(),
+                file_content: as_str.to_string(),
+                // required fields
+                auth_state: base.auth_state,
+                guppy: base.guppy,
+                bundlrs: base.bundlrs,
                 body_embed: base.body_embed,
             }
             .render()

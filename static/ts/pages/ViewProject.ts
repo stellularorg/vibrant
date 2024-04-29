@@ -78,6 +78,8 @@ for (const element of Array.from(
 )) {
     element.addEventListener("click", () => {
         const endpoint = element.getAttribute("data-file-endpoint")!;
+        const project = element.getAttribute("data-project")!;
+        const file = element.getAttribute("data-file")!;
 
         (globalThis as any).delete_file = async () => {
             if (
@@ -106,11 +108,21 @@ for (const element of Array.from(
                 window.location.reload();
             }
         };
+
+        (globalThis as any).open_file_editor = async () => {
+            window.open(
+                `${window.location.origin}/dashboard/project/${project}/edit${file}`
+            );
+        };
     });
 }
 
 const upload_button: HTMLButtonElement | null = document.getElementById(
     "upload_file"
+) as HTMLButtonElement | null;
+
+const create_button: HTMLButtonElement | null = document.getElementById(
+    "create_file"
 ) as HTMLButtonElement | null;
 
 function base64_file(input: File): Promise<String> {
@@ -179,15 +191,56 @@ if (upload_button) {
     });
 }
 
+if (create_button && upload_button) {
+    // create file
+    create_button.addEventListener("click", async (e) => {
+        e.preventDefault();
+
+        // get path
+        const file_path = prompt("File path:");
+        if (!file_path) return;
+
+        const file_base64 = btoa("New File");
+
+        // ...
+        loading_modal_inner.innerHTML = "<b>Uploading file!</b> Please wait.";
+        loading_modal.showModal();
+
+        const res = await fetch(
+            `${upload_button.getAttribute("data-endpoint")!}/${file_path}`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    content: file_base64,
+                }),
+            }
+        );
+
+        loading_modal.close();
+
+        const json = await res.json();
+
+        if (json.success === false) {
+            alert(json.message);
+        } else {
+            window.location.reload();
+        }
+    });
+}
+
 // live url
 const live_url = document.getElementById(
     "live_url"
 ) as HTMLAnchorElement | null;
 
 if (live_url) {
-    live_url.href = `${window.location.protocol}//${live_url.getAttribute(
-        "data-project"
-    )!}.get.${window.location.host}`;
+    // live_url.href = `${window.location.protocol}//${live_url.getAttribute(
+    //     "data-project"
+    // )!}.get.${window.location.host}`;
+    live_url.href = `/${live_url.getAttribute("data-project")!}`;
     live_url.innerText = live_url.href;
 }
 
