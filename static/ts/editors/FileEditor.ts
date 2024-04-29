@@ -386,7 +386,11 @@ export function create_editor(
                 {
                     method: "PUT",
                     body: JSON.stringify({
-                        content: btoa((globalThis as any).FileEditor.Content),
+                        content: btoa(
+                            encodeURIComponent(
+                                (globalThis as any).FileEditor.Content
+                            )
+                        ),
                     }),
                     headers: {
                         "Content-Type": "application/json",

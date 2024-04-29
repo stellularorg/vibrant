@@ -1,6 +1,7 @@
 use crate::db::{AppData, PCreateProject};
 use actix_files::file_extension_to_mime;
 use actix_web::{delete, get, post, put, web, HttpRequest, HttpResponse, Responder};
+use base64::Engine;
 use dorsal::DefaultReturn;
 use serde::{Deserialize, Serialize};
 
@@ -400,13 +401,30 @@ pub async fn update_file_request(
             .body("Payload is too large.");
     }
 
+    // update body content
+    let bytes = base64::engine::general_purpose::STANDARD.decode(body.content.clone());
+
+    if bytes.is_err() {
+        return HttpResponse::NotAcceptable()
+            .append_header(("Content-Type", "text/plain"))
+            .append_header(("Set-Cookie", set_cookie))
+            .body("Failed to decode");
+    }
+
+    // decode
+    let bytes = bytes.unwrap();
+    let decoded = urlencoding::decode_binary(&bytes);
+
+    // re-encode
+    let content = base64::engine::general_purpose::STANDARD.encode(decoded);
+
     // ...
     let res = data
         .db
         .update_file_in_project(
             project_name.to_string(),
             path.to_string(),
-            body.content.clone(),
+            content,
             if token_user.is_some() {
                 Option::Some(token_user.unwrap().payload.unwrap().user.username)
             } else {

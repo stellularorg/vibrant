@@ -2789,6 +2789,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "urlencoding",
 ]
 
 [[package]]

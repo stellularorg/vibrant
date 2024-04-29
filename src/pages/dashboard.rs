@@ -342,8 +342,7 @@ pub async fn project_file_editor_request(
     }
 
     let payload = file.payload.unwrap();
-    let as_str = std::str::from_utf8(&payload)
-        .unwrap_or("Failed to read file as UTF-8 string");
+    let as_str = std::str::from_utf8(&payload).unwrap_or("Failed to read file as UTF-8 string");
 
     // ...
     let base = base::get_base_values(token_user.is_some());
@@ -354,7 +353,12 @@ pub async fn project_file_editor_request(
             ProjectFileEditorTemplate {
                 project: project.payload.unwrap(),
                 file_path: path.to_string(),
-                file_content: as_str.to_string(),
+                file_content: as_str
+                    .to_string()
+                    .replace("\\", "\\\\")
+                    .replace("`", "\\`")
+                    .replace("$", "\\$")
+                    .replace("/", "\\/"),
                 // required fields
                 auth_state: base.auth_state,
                 guppy: base.guppy,
