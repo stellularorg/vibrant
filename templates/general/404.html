@@ -10,8 +10,8 @@
 
         <div class="flex g-4 flex-wrap">
             {% if auth_state == false %}
-            <a href="{{ guppy }}/d/auth/login" class="button green-cta round" data-wants-redirect="true">Login</a>
-            <a href="{{ guppy }}/d/auth/register" class="button green secondary round"
+            <a href="{{ guppy }}/flow/auth/login" class="button green-cta round" data-wants-redirect="true">Login</a>
+            <a href="{{ guppy }}/flow/auth/register" class="button green secondary round"
                 data-wants-redirect="true">Register</a>
             {% else %}
             <a href="/dashboard" class="button theme:primary round">My Dashboard</a>
