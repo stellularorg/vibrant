@@ -97,6 +97,22 @@ export const DefaultHighlight = HighlightStyle.define([
     },
 ]);
 
+function base64_string(string: string): Promise<String> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.addEventListener("loadend", () => {
+            resolve(
+                (reader.result as String)
+                    .replace("data:", "")
+                    .replace(/^.+,/, "")
+            );
+        });
+
+        reader.readAsDataURL(new File([string], "unknown"));
+    });
+}
+
 // create lint
 import { HTMLHint } from "htmlhint";
 
@@ -386,10 +402,8 @@ export function create_editor(
                 {
                     method: "PUT",
                     body: JSON.stringify({
-                        content: btoa(
-                            encodeURIComponent(
-                                (globalThis as any).FileEditor.Content
-                            )
+                        content: await base64_string(
+                            (globalThis as any).FileEditor.Content
                         ),
                     }),
                     headers: {
