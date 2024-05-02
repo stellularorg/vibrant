@@ -166,12 +166,24 @@ pub async fn get_project_files_request(
     // verify auth status
     let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
 
-    if token_user.is_none() {
-        return HttpResponse::NotAcceptable().body("An account is required to edit projects.");
-    }
+    // if token_user.is_none() {
+    //     return HttpResponse::NotAcceptable().body("An account is required to list project files.");
+    // }
 
     // ...
-    let res = data.db.get_project_files(project_name.to_string()).await;
+    let res = data
+        .db
+        .get_project_files(
+            project_name.to_string(),
+            if token_user.is_some() {
+                let user = token_user.unwrap().payload.unwrap();
+                Option::Some(user.user.username)
+            } else {
+                Option::None
+            },
+            false,
+        )
+        .await;
 
     if res.success == false {
         return HttpResponse::NotFound()
@@ -194,12 +206,22 @@ pub async fn read_file_request(req: HttpRequest, data: web::Data<AppData>) -> im
     let path = req.match_info().get("path").unwrap();
 
     // verify auth status
-    let (set_cookie, _, _) = base::check_auth_status(req.clone(), data.clone()).await;
+    let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
 
     // ...
     let res = data
         .db
-        .get_file_in_project(project_name.to_string(), path.to_string())
+        .get_file_in_project(
+            project_name.to_string(),
+            path.to_string(),
+            if token_user.is_some() {
+                let user = token_user.unwrap().payload.unwrap();
+                Option::Some(user.user.username)
+            } else {
+                Option::None
+            },
+            false,
+        )
         .await;
 
     if res.success == false {
@@ -238,12 +260,22 @@ pub async fn read_project_global_request(
     let path = "/index.html";
 
     // verify auth status
-    let (set_cookie, _, _) = base::check_auth_status(req.clone(), data.clone()).await;
+    let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
 
     // ...
     let res = data
         .db
-        .get_file_in_project(project_name.to_string(), path.to_string())
+        .get_file_in_project(
+            project_name.to_string(),
+            path.to_string(),
+            if token_user.is_some() {
+                let user = token_user.unwrap().payload.unwrap();
+                Option::Some(user.user.username)
+            } else {
+                Option::None
+            },
+            false,
+        )
         .await;
 
     if res.success == false {
@@ -279,12 +311,22 @@ pub async fn read_file_global_request(
     let path = req.match_info().get("path").unwrap();
 
     // verify auth status
-    let (set_cookie, _, _) = base::check_auth_status(req.clone(), data.clone()).await;
+    let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
 
     // ...
     let res = data
         .db
-        .get_file_in_project(project_name.to_string(), path.to_string())
+        .get_file_in_project(
+            project_name.to_string(),
+            path.to_string(),
+            if token_user.is_some() {
+                let user = token_user.unwrap().payload.unwrap();
+                Option::Some(user.user.username)
+            } else {
+                Option::None
+            },
+            false,
+        )
         .await;
 
     if res.success == false {

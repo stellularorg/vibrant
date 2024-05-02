@@ -262,7 +262,10 @@ pub async fn project_view_request(
     }
 
     // fetch project files
-    let files = data.db.get_project_files(project_name.to_string()).await;
+    let files = data
+        .db
+        .get_project_files(project_name.to_string(), Option::None, true)
+        .await;
 
     if !files.success {
         return super::errors::error404(req, data).await;
@@ -334,7 +337,12 @@ pub async fn project_file_editor_request(
     // fetch project files
     let file = data
         .db
-        .get_file_in_project(project_name.to_string(), path.to_string())
+        .get_file_in_project(
+            project_name.to_string(),
+            path.to_string(),
+            Option::None,
+            true,
+        )
         .await;
 
     if !file.success {

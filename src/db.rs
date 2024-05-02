@@ -56,13 +56,13 @@ impl std::fmt::Display for ProjectType {
 }
 
 // base structures
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ProjectFilePrivacy {
     /// project files can be LISTED and VIEWED by everybody
     Public,
     /// project files can be LISTED by nobody and VIEWED by everybody
     Confidential,
-    /// project files require authentication to VIEWED; files can only be VIEWED by project owner
+    /// project files can be LISTED by nobody; files can only be VIEWED by project owner
     Private,
 }
 
@@ -892,6 +892,8 @@ impl Database {
         &self,
         name: String,
         mut path: String,
+        as_user: Option<String>,
+        bypass_user_checks: bool,
     ) -> DefaultReturn<Option<Vec<u8>>> {
         // get project
         let existing = self.get_project_by_id(name.clone()).await;
@@ -902,6 +904,35 @@ impl Database {
                 message: String::from("Project does not exist!"),
                 payload: Option::None,
             };
+        }
+
+        // check file privacy
+        if bypass_user_checks == false {
+            let project = existing.payload.unwrap();
+
+            if as_user.is_some() {
+                let user = as_user.unwrap();
+
+                // "Confidential" is basically the same as "Public" in ProjectFilePrivacy
+                if (project.metadata.file_privacy == ProjectFilePrivacy::Private)
+                    && (user != project.owner)
+                {
+                    return DefaultReturn {
+                        success: false,
+                        message: String::from("Not allowed to view project files!"),
+                        payload: Option::None,
+                    };
+                }
+            } else {
+                // TODO: possibly make "Public" be required here (make "Confidential" hide from non-authenticated users)
+                if project.metadata.file_privacy == ProjectFilePrivacy::Private {
+                    return DefaultReturn {
+                        success: false,
+                        message: String::from("Not allowed to view project files!"),
+                        payload: Option::None,
+                    };
+                }
+            }
         }
 
         // check path
@@ -1001,7 +1032,12 @@ impl Database {
     }
 
     /// Get all file (names) in the given [`Project`]
-    pub async fn get_project_files(&self, name: String) -> DefaultReturn<Vec<String>> {
+    pub async fn get_project_files(
+        &self,
+        name: String,
+        as_user: Option<String>,
+        bypass_user_checks: bool,
+    ) -> DefaultReturn<Vec<String>> {
         // get project
         let existing = self.get_project_by_id(name.clone()).await;
 
@@ -1011,6 +1047,33 @@ impl Database {
                 message: String::from("Project does not exist!"),
                 payload: Vec::new(),
             };
+        }
+
+        // check permissions
+        if bypass_user_checks == false {
+            let project = existing.payload.unwrap();
+
+            if as_user.is_some() {
+                let user = as_user.unwrap();
+
+                if (project.metadata.file_privacy != ProjectFilePrivacy::Public)
+                    && (user != project.owner)
+                {
+                    return DefaultReturn {
+                        success: false,
+                        message: String::from("Not allowed to view project file listing!"),
+                        payload: Vec::new(),
+                    };
+                }
+            } else {
+                if project.metadata.file_privacy != ProjectFilePrivacy::Public {
+                    return DefaultReturn {
+                        success: false,
+                        message: String::from("Not allowed to view project file listing!"),
+                        payload: Vec::new(),
+                    };
+                }
+            }
         }
 
         // incr project requests
