@@ -503,6 +503,11 @@ function build_element_field(
 }
 
 function build_element_property_window(element: HTMLElement): void {
+    // make sure editor is enabled
+    if ((globalThis as any).FileEditor.visual_editor_enabled !== true) {
+        return;
+    }
+
     if (document.getElementById("property_window")) {
         document.getElementById("property_window")!.remove();
         (globalThis as any).current_element.style.removeProperty("box-shadow");

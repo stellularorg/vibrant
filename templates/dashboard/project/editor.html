@@ -20,6 +20,17 @@
                         <path d="M8 16H3v5" />
                     </svg>
                 </button>
+
+                <button class="round" data-dialog="workspace_settings" title="Workspace Settings">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="lucide lucide-settings-2">
+                        <path d="M20 7h-9" />
+                        <path d="M14 17H5" />
+                        <circle cx="17" cy="17" r="3" />
+                        <circle cx="7" cy="7" r="3" />
+                    </svg>
+                </button>
             </div>
 
             <iframe id="_preview_pane" class="full" style="height: calc(100% - 47.8px); overflow: auto;" frameborder="0"
@@ -63,7 +74,8 @@
                 </svg>
             </button>
 
-            <a href="/dashboard/project/{{ project.name }}" class="button round secondary" id="file_explorer" title="Manage Files">
+            <a href="/dashboard/project/{{ project.name }}" class="button round secondary" id="file_explorer"
+                title="Manage Files">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                     class="lucide lucide-folder-tree">
@@ -107,4 +119,32 @@
         }
     </style>
 </div>
+
+<!-- dialogs -->
+<dialog id="workspace_settings">
+    <div style="width: 25rem; max-width: 100%">
+        <h2 class="no-margin full text-center" style="cursor: pointer">
+            Workspace
+        </h2>
+
+        <hr />
+
+        <div class="flex flex-column g-4">
+            <div class="card full round secondary flex justify-space-between align-center">
+                <label for="visual_editor"><b>Visual Editor</b></label>
+                <input type="checkbox" name="visual_editor" id="visual_editor"
+                    style="width: 15px; height: 15px !important;"
+                    onclick="globalThis.FileEditor.visual_editor_enabled = event.checked;" />
+            </div>
+        </div>
+
+        <hr />
+
+        <div class="full flex justify-right">
+            <a class="button round red" href="javascript:document.getElementById('workspace_settings').close();">
+                Close
+            </a>
+        </div>
+    </div>
+</dialog>
 {% endblock %}
