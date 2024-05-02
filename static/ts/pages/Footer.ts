@@ -86,6 +86,13 @@ setTimeout(() => {
         ).toLocaleString();
 }, 50);
 
+// disabled="false"
+for (const element of Array.from(
+    document.querySelectorAll('[disabled="false"]')
+) as HTMLButtonElement[]) {
+    element.removeAttribute("disabled");
+}
+
 // disable "a"
 setTimeout(() => {
     for (const element of Array.from(
@@ -265,6 +272,20 @@ for (const element of Array.from(
         dialog_element.showModal();
     });
 }
+
+window.addEventListener("click", (e: any) => {
+    if (e.target.tagName !== "DIALOG") return;
+
+    const rect = e.target.getBoundingClientRect();
+
+    const clicked_in_dialog =
+        rect.top <= e.clientY &&
+        e.clientY <= rect.top + rect.height &&
+        rect.left <= e.clientX &&
+        e.clientX <= rect.left + rect.width;
+
+    if (clicked_in_dialog === false) e.target.close();
+});
 
 // default export
 export default {};

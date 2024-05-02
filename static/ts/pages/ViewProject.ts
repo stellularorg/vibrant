@@ -197,8 +197,13 @@ if (create_button && upload_button) {
         e.preventDefault();
 
         // get path
-        const file_path = prompt("File path:");
+        let file_path = prompt("File path:");
         if (!file_path) return;
+
+        if (file_path === "/Index.html") {
+            // mobile autocap
+            file_path = "/index.html";
+        }
 
         const file_base64 = btoa("New File");
 

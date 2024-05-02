@@ -11,7 +11,7 @@ docs:
 test:
     just docs
     bun run static_build.ts
-    cargo run
+    cargo run -- --port 8080
 
 styles:
     wget https://codeberg.org/api/packages/hkau/npm/fusion/-/1.0.11/fusion-1.0.11.tgz -O fusion.tgz
