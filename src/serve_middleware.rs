@@ -48,6 +48,7 @@ where
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let site_host = std::env::var("HOST");
+        let site_host_no_tld = std::env::var("HOST_NO_TLD");
 
         // process response as normal
         let cookie = req.request().cookie("__Secure-Token");
@@ -60,12 +61,13 @@ where
             let host = res.request().headers().get("host");
 
             // check host and return asset
-            if host.is_some() && site_host.is_ok()
+            if host.is_some() && site_host.is_ok() && site_host_no_tld.is_ok()
             // && std::str::from_utf8(host.as_ref().unwrap().as_bytes())
             //     .unwrap()
             //     .contains(".get.")
             {
                 let site_host = site_host.unwrap();
+                let site_host_no_tld = site_host_no_tld.unwrap();
 
                 // serve project asset
                 let data = res
@@ -85,11 +87,11 @@ where
                         .unwrap()
                         .replace("https://", "")
                         .replace("http://", "");
-                    
+
                     let project = project.as_str();
 
                     // make sure project is not the host and is not "www"
-                    if [host, "www", ""].contains(&project) {
+                    if [host, &site_host, &site_host_no_tld, "www", ""].contains(&project) {
                         return Ok(res.map_into_left_body());
                     }
 

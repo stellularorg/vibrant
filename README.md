@@ -24,4 +24,4 @@ Files can be uploaded to specific projects that are not of the `StaticContainer`
 
 Files are stored in the database as base64 `BLOB` objects. Files can be at most 2 MB.
 
-Projects can be accessed via a subdomain if the `HOST` environment variable is set.
+Projects can be accessed via a subdomain if the `HOST` and `HOST_NO_TLD` environment variables are set.
