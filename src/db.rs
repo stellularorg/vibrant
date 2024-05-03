@@ -991,7 +991,7 @@ impl Database {
         if res.is_err() {
             return DefaultReturn {
                 success: false,
-                message: String::from(res.err().unwrap().to_string()),
+                message: String::from("Unable to find file at given path!"),
                 payload: Option::None,
             };
         }

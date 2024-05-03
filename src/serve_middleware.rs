@@ -9,6 +9,8 @@ use actix_web::{
     Error, HttpResponse,
 };
 
+use crate::pages::base;
+
 pub struct ServeAssets;
 
 impl<S, B> Transform<S, ServiceRequest> for ServeAssets
@@ -45,7 +47,10 @@ where
     forward_ready!(service);
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
+        let site_host = std::env::var("HOST");
+
         // process response as normal
+        let cookie = req.request().cookie("__Secure-Token");
         let fut = self.service.call(req);
 
         Box::pin(async move {
@@ -55,11 +60,13 @@ where
             let host = res.request().headers().get("host");
 
             // check host and return asset
-            if host.is_some()
-                && std::str::from_utf8(host.as_ref().unwrap().as_bytes())
-                    .unwrap()
-                    .contains(".get.")
+            if host.is_some() && site_host.is_ok()
+            // && std::str::from_utf8(host.as_ref().unwrap().as_bytes())
+            //     .unwrap()
+            //     .contains(".get.")
             {
+                let site_host = site_host.unwrap();
+
                 // serve project asset
                 let data = res
                     .request()
@@ -68,11 +75,19 @@ where
 
                 // ...
                 let host = std::str::from_utf8(host.as_ref().unwrap().as_bytes()).unwrap();
-                let host_split = host.split(".get.").collect::<Vec<&str>>();
+                // let host_split = host.split(".get.").collect::<Vec<&str>>();
+                let host_split = host.split(&format!(".{site_host}")).collect::<Vec<&str>>();
 
                 let project = host_split.get(0);
                 if project.is_some() {
                     let project = project.unwrap();
+
+                    // make sure project is not the host and is not "www"
+                    if [host, "www"].contains(project) {
+                        return Ok(res.map_into_left_body());
+                    }
+
+                    // ...
                     let mut path = res.request().path().to_string();
 
                     // check path
@@ -82,16 +97,56 @@ where
                         path = format!("/{}", path);
                     }
 
+                    // verify auth status
+                    let (set_cookie, _, token_user) =
+                        base::check_auth_status_with_cookie(cookie, data.clone()).await;
+
                     // fetch asset
                     let file = data
                         .db
-                        .get_file_in_project(project.to_string(), path.clone())
+                        .get_file_in_project(
+                            project.to_string(),
+                            path.clone(),
+                            if token_user.is_some() {
+                                let user = token_user.unwrap().payload.unwrap();
+                                Option::Some(user.user.username)
+                            } else {
+                                Option::None
+                            },
+                            false,
+                        )
                         .await;
 
                     if file.success == false {
                         let new_res = ServiceResponse::new(
                             res.request().clone(),
-                            HttpResponse::NotFound().body("404: Not Found"),
+                            HttpResponse::NotAcceptable()
+                                .append_header(("Content-Type", "text/html"))
+                                .body(format!("<!DOCTYPE html>
+
+                                <html lang=\"en\">
+                                    <head>
+                                        <meta charset=\"UTF-8\" />
+                                        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />
+                                        <title>Error! (Vibrant)</title>
+
+                                        <link rel=\"stylesheet\" href=\"//{site_host}/static/style.css\" />
+                                    </head>
+                                
+                                    <body>
+                                        <main class=\"small flex flex-column g-4\">
+                                            <div class=\"card secondary border round full flex justify-center align-center\">
+                                                <h3 class=\"no-margin text-center\">{}</h3>
+                                            </div>
+
+                                            <div class=\"flex justify-center footernav\">
+                                                <span class=\"item\"><a href=\"/\">Root</a></span>
+                                                <span class=\"item\"><a href=\"//{site_host}\">🌸 Homepage</a></span>
+                                                <span class=\"item\"><a href=\"https://code.stellular.org/stellular/vibrant\">Source Code</a></span>
+                                            </div>
+                                        </main>
+                                    </body>
+                                </html>", file.message)),
                         )
                         .map_into_right_body();
 
@@ -109,6 +164,7 @@ where
                     let new_res = ServiceResponse::new(
                         res.request().clone(),
                         HttpResponse::Ok()
+                            .append_header(("Set-Cookie", set_cookie))
                             .append_header(("Content-Type", file_extension_to_mime(ext)))
                             .body(file.payload.unwrap()),
                     )

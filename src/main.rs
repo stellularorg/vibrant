@@ -6,7 +6,7 @@ use dotenv;
 pub mod api;
 pub mod db;
 pub mod pages;
-// pub mod serve_middleware;
+pub mod serve_middleware;
 
 use crate::db::AppData;
 
@@ -83,7 +83,7 @@ async fn main() -> std::io::Result<()> {
             // middleware
             .wrap(actix_web::middleware::Logger::default())
             .wrap(cors)
-            // .wrap(serve_middleware::ServeAssets)
+            .wrap(serve_middleware::ServeAssets)
             // static dir
             .service(
                 fs::Files::new(
