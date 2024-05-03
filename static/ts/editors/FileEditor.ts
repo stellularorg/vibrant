@@ -443,14 +443,13 @@ function build_element_attribute_field(
     field.className =
         "card less-padding secondary border round full flex flex-column g-2";
 
-    field.innerHTML = `<b>${property_display}</b><input 
-        value="${value}" 
+    field.innerHTML = `<b>${property_display}</b><textarea
         placeholder="${property_name}"
         oninput="current_element.setAttribute('${property_name}', event.target.value); window.update_document_content();"
         onchange="window.FileEditor.Format();"
         class="full round"
         style="height: 35px !important;"
-    />`;
+    >${value}</textarea>`;
 
     // return
     return field;
@@ -467,7 +466,7 @@ function build_element_style_field(
         "card less-padding secondary border round full flex flex-column g-2";
 
     field.innerHTML = `<b>${property_display}</b><input 
-        value="${value}" 
+        value="${value.trim()}" 
         placeholder="${property_name}"
         oninput="current_element.style.setProperty('${property_name}', event.target.value); window.update_document_content();"
         onchange="window.FileEditor.Format();"
@@ -490,13 +489,35 @@ function build_element_field(
         "card less-padding secondary border round full flex flex-column g-2";
 
     field.innerHTML = `<b>${property_display}</b><input 
-        value="${value}" 
+        value="${value.trim()}" 
         placeholder="${property_name}"
         oninput="current_element['${property_name}'] = event.target.value; window.update_document_content();"
         onchange="window.FileEditor.Format();"
         class="full round"
         style="height: 35px !important;"
     />`;
+
+    // return
+    return field;
+}
+
+function build_element_textarea_field(
+    property_display: string,
+    property_name: string,
+    value: string
+): HTMLDivElement {
+    const field = document.createElement("div");
+
+    field.className =
+        "card less-padding secondary border round full flex flex-column g-2";
+
+    field.innerHTML = `<b>${property_display}</b><textarea
+        placeholder="${property_name}"
+        oninput="current_element['${property_name}'] = event.target.value; window.update_document_content();"
+        onchange="window.FileEditor.Format();"
+        class="full round"
+        style="height: 35px !important;"
+    >${value}</textarea>`;
 
     // return
     return field;
@@ -545,16 +566,19 @@ function build_element_property_window(element: HTMLElement): void {
     // create property window
     const property_window = document.createElement("div");
 
-    property_window.style.position = "fixed";
-    property_window.style.top = "0";
-    property_window.style.left = "0";
+    // property_window.style.position = "fixed";
+    // property_window.style.top = "0";
+    // property_window.style.left = "0";
     property_window.style.width = "25rem";
     property_window.style.maxWidth = "100dvw";
-    property_window.style.maxHeight = "calc(50% - 22px)";
+    // property_window.style.maxHeight = "calc(50% - 22px)";
+    property_window.style.maxHeight = "100%";
+    property_window.style.height = "100%";
     property_window.style.boxShadow = "-2px 2px 4px hsla(0, 0%, 0%, 25%)";
     property_window.style.overflow = "auto";
+    property_window.style.borderRight = "solid 1px var(--background-surface2a)";
 
-    property_window.className = "card border flex flex-column g-4";
+    property_window.className = "card flex flex-column g-4";
     property_window.id = "property_window";
 
     // titlebar
@@ -578,6 +602,7 @@ function build_element_property_window(element: HTMLElement): void {
 
     close_button.addEventListener("click", () => {
         property_window.remove();
+        (globalThis as any).disable_property_window();
         (globalThis as any).current_element.style.removeProperty("box-shadow");
         (globalThis as any).update_document_content();
         (globalThis as any).FileEditor.Format();
@@ -587,7 +612,11 @@ function build_element_property_window(element: HTMLElement): void {
 
     // basic fields
     property_window.appendChild(
-        build_element_field("Text Content", "innerText", element.innerText)
+        build_element_textarea_field(
+            "Text Content",
+            "innerText",
+            element.innerText
+        )
     );
 
     property_window.appendChild(
@@ -707,8 +736,16 @@ function build_element_property_window(element: HTMLElement): void {
     }
 
     // append
-    document.body.appendChild(property_window);
+    // document.body.appendChild(property_window);
+    document.getElementById("_doc")!.style.display = "none";
+    document.getElementById("_visual")!.style.display = "contents";
+    document.getElementById("_visual")!.appendChild(property_window);
 }
+
+(globalThis as any).disable_property_window = () => {
+    document.getElementById("_doc")!.style.display = "block";
+    document.getElementById("_visual")!.style.display = "none";
+};
 
 // default export
 export default {

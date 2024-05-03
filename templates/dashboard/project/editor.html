@@ -6,7 +6,10 @@
 {% block content %}
 <div class="flex flex-column" style="height: 100dvh;">
     <div class="panes flex mobile:flex-column" style="height: 100%; overflow: auto;">
-        <div id="_doc" class="full" style="height: 100%; overflow: auto; display: block;"></div>
+        <div id="doc_or_visual" style="display: contents;">
+            <div id="_doc" class="full" style="height: 100%; overflow: auto; display: block;"></div>
+            <div id="_visual" style="display: none;"></div>
+        </div>
 
         <div id="_preview_browser" class="full" style="height: 100%; overflow: hidden; display: none;">
             <div class="full flex g-4 bg-0" style="padding: var(--u-04); height: 47.8px;">
@@ -134,7 +137,7 @@
                 <label for="visual_editor"><b>Visual Editor</b></label>
                 <input type="checkbox" name="visual_editor" id="visual_editor"
                     style="width: 15px; height: 15px !important;"
-                    onclick="globalThis.FileEditor.visual_editor_enabled = event.checked;" />
+                    onclick="globalThis.FileEditor.visual_editor_enabled = event.target.checked; globalThis.disable_property_window();" />
             </div>
         </div>
 
