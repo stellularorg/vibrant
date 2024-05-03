@@ -24,4 +24,15 @@ Files can be uploaded to specific projects that are not of the `StaticContainer`
 
 Files are stored in the database as base64 `BLOB` objects. Files can be at most 2 MB.
 
-Projects can be accessed via a subdomain if the `HOST` and `HOST_NO_TLD` environment variables are set.
+Projects can be accessed via a subdomain if the `HOST` environment variables is set.
+
+## Project Limits
+
+A user's project limits are controlled by a few permissions:
+
+* `VIB:MaxProjects:10`
+* `VIB:MaxProjects:25`
+* `VIB:MaxProjects:Disabled`
+* `VIB:RequestLimit:Default`
+* `VIB:RequestLimit:Enterprise`
+* `VIB:RequestLimit:Disabled`

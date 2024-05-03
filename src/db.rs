@@ -19,7 +19,7 @@ pub struct AppData {
 }
 
 // base structures
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub enum ProjectRequestLimit {
     /// project can serve 1,000,000 requests per billing period
     Default = 1_000_000,
@@ -466,6 +466,70 @@ impl Database {
             };
         }
 
+        // get user
+        let user = self.auth.get_user_by_username(as_user.unwrap()).await;
+
+        if !user.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("User is invalid!"),
+                payload: Option::None,
+            };
+        }
+
+        let user = user.payload.unwrap();
+
+        // get user projects for count
+        if !user
+            .level
+            .permissions
+            .contains(&"VIB:MaxProjects:Disabled".to_string())
+        {
+            let mut max_of_10 = user
+                .level
+                .permissions
+                .contains(&"VIB:MaxProjects:10".to_string());
+            let max_of_25 = user
+                .level
+                .permissions
+                .contains(&"VIB:MaxProjects:25".to_string());
+
+            // if both are false, max_of_10 should be true
+            if (max_of_10 == false) && (max_of_25 == false) {
+                max_of_10 = true;
+            }
+
+            // ...
+            let user_projects = self
+                .get_projects_by_owner_limited(user.user.username.clone(), Option::Some(0))
+                .await;
+
+            if !user_projects.success {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from("User is invalid!"),
+                    payload: Option::None,
+                };
+            }
+
+            let user_projects = user_projects.payload.unwrap();
+
+            // ...
+            if max_of_10 && user_projects.len() >= 10 {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from("You have reached the maximum number of projects allowed for your account level."),
+                    payload: Option::None,
+                };
+            } else if max_of_25 && user_projects.len() >= 25 {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from("You have reached the maximum number of projects allowed for your account level."),
+                    payload: Option::None,
+                };
+            }
+        }
+
         // create project
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "INSERT INTO \"Projects\" VALUES (?, ?, ?, ?, ?)"
@@ -477,7 +541,7 @@ impl Database {
         let res =
             sqlquery(query)
                 .bind::<&String>(&props.name)
-                .bind::<&String>(&as_user.as_ref().unwrap())
+                .bind::<&String>(&user.user.username)
                 .bind::<&String>(&dorsal::utility::unix_epoch_timestamp().to_string()) // billing period starts now
                 .bind::<&String>(
                     &serde_json::to_string::<ProjectPrivateMetadata>(
@@ -502,7 +566,7 @@ impl Database {
         // clear user projects at all layers
         self.base
             .cachedb
-            .remove_starting_with(format!("projects-by-owner:{}*", as_user.as_ref().unwrap()))
+            .remove_starting_with(format!("projects-by-owner:{}*", user.user.username))
             .await;
 
         // create container
@@ -906,10 +970,10 @@ impl Database {
             };
         }
 
+        let project = existing.payload.unwrap();
+
         // check file privacy
         if bypass_user_checks == false {
-            let project = existing.payload.unwrap();
-
             if as_user.is_some() {
                 let user = as_user.unwrap();
 
@@ -940,6 +1004,56 @@ impl Database {
             path = String::from("/index.html");
         } else if !path.starts_with("/") {
             path = format!("/{}", path);
+        }
+
+        // get project owner
+        let user = self.auth.get_user_by_username(project.owner).await;
+
+        if user.success == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Project owner is invalid!"),
+                payload: Option::None,
+            };
+        }
+
+        // check permission
+        let user = user.payload.unwrap();
+
+        if !user
+            .level
+            .permissions
+            .contains(&"VIB:RequestLimit:Disabled".to_string())
+        {
+            let user_limit = if user
+                .level
+                .permissions
+                .contains(&"VIB:RequestLimit:Enterprise".to_string())
+            {
+                ProjectRequestLimit::Enterprise
+            } else {
+                ProjectRequestLimit::Default
+            };
+
+            let current_usage = self
+                .base
+                .cachedb
+                .get(format!("billing:requests:{}", name))
+                .await
+                .unwrap_or(String::from("0"))
+                .parse::<i32>()
+                .unwrap();
+
+            // ...
+            if ((user_limit == ProjectRequestLimit::Enterprise) && (current_usage >= 100_000_000))
+                | ((user_limit == ProjectRequestLimit::Default) && (current_usage >= 1_000_000))
+            {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from("Limit exceeded!"),
+                    payload: Option::None,
+                };
+            }
         }
 
         // check in cache

@@ -48,7 +48,6 @@ where
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let site_host = std::env::var("HOST");
-        let site_host_no_tld = std::env::var("HOST_NO_TLD");
 
         // process response as normal
         let cookie = req.request().cookie("__Secure-Token");
@@ -60,14 +59,24 @@ where
             // get host
             let host = res.request().headers().get("host");
 
-            // check host and return asset
-            if host.is_some() && site_host.is_ok() && site_host_no_tld.is_ok()
+            // custom domain
+            // if host.is_some()
+            //     && site_host.is_ok()
+            //     && std::str::from_utf8(host.as_ref().unwrap().as_bytes()).unwrap()
+            //         != site_host.as_ref().unwrap()
+            // {
+            //     dbg!(&site_host);
+            //     // implement get_project_by_custom_domain
+            //     // return error if not found
+            // }
+            // // subdomain
+            // else
+            if host.is_some() && site_host.is_ok()
             // && std::str::from_utf8(host.as_ref().unwrap().as_bytes())
             //     .unwrap()
             //     .contains(".get.")
             {
                 let site_host = site_host.unwrap();
-                let site_host_no_tld = site_host_no_tld.unwrap();
 
                 // serve project asset
                 let data = res
@@ -78,8 +87,7 @@ where
                 // ...
                 let host = std::str::from_utf8(host.as_ref().unwrap().as_bytes()).unwrap();
                 // let host_split = host.split(".get.").collect::<Vec<&str>>();
-                let host_split = host.split(".").collect::<Vec<&str>>(); // we're splitting by a single period here, so projects CANNOT contain "." in their names ...
-                                                                         // this also means that we can host internal pages under a "nested subdomain" (one.two.three.host)
+                let host_split = host.split(&format!(".{site_host}")).collect::<Vec<&str>>();
 
                 let project = host_split.get(0);
                 if project.is_some() {
@@ -91,7 +99,7 @@ where
                     let project = project.as_str();
 
                     // make sure project is not the host and is not "www"
-                    if [host, &site_host, &site_host_no_tld, "www", ""].contains(&project) {
+                    if [host, "www", ""].contains(&project) {
                         return Ok(res.map_into_left_body());
                     }
 
@@ -160,6 +168,8 @@ where
 
                         return Ok(new_res);
                     }
+
+                    data.db.incr_project_requests(project.to_string()).await;
 
                     // get file extension from path
                     let ext = path
