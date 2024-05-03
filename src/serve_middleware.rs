@@ -81,10 +81,15 @@ where
 
                 let project = host_split.get(0);
                 if project.is_some() {
-                    let project = project.unwrap();
+                    let project = project
+                        .unwrap()
+                        .replace("https://", "")
+                        .replace("http://", "");
+                    
+                    let project = project.as_str();
 
                     // make sure project is not the host and is not "www"
-                    if [host, "www"].contains(project) {
+                    if [host, "www", ""].contains(&project) {
                         return Ok(res.map_into_left_body());
                     }
 
