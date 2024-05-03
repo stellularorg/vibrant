@@ -76,7 +76,8 @@ where
                 // ...
                 let host = std::str::from_utf8(host.as_ref().unwrap().as_bytes()).unwrap();
                 // let host_split = host.split(".get.").collect::<Vec<&str>>();
-                let host_split = host.split(&format!(".{site_host}")).collect::<Vec<&str>>();
+                let host_split = host.split(".").collect::<Vec<&str>>(); // we're splitting by a single period here, so projects CANNOT contain "." in their names ...
+                                                                         // this also means that we can host internal pages under a "nested subdomain" (one.two.three.host)
 
                 let project = host_split.get(0);
                 if project.is_some() {
