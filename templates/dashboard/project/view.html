@@ -151,17 +151,6 @@
             <tr>
                 <td>
                     <div class="flex align-center g-4">
-                        <a href="#" class="flex load_file_path" data-dialog="manage_file_path"
-                            data-file-endpoint="/api/v1/project/{{ project.name }}/files:mv/{{ f }}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" class="lucide lucide-pencil-line">
-                                <path d="M12 20h9" />
-                                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                                <path d="m15 5 3 3" />
-                            </svg>
-                        </a>
-
                         <a href="/api/v1/project/{{ project.name }}/files{{ f }}">{{ f }}</a>
                     </div>
                 </td>
@@ -169,7 +158,7 @@
                 <td class="flex g-4 flex-wrap">
                     <button class="secondary round load_file_info" data-dialog="manage_file"
                         data-file-endpoint="/api/v1/project/{{ project.name }}/files/{{ f }}"
-                        data-project="{{ project.name }}" data-file="{{ f }}" title="More Options">
+                        data-project="{{ project.name }}" data-file="{{ f }}" id="manage:{{ f }}" title="More Options">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                             class="lucide lucide-wrench">
@@ -201,6 +190,19 @@
                     </svg>
 
                     Edit
+                </button>
+
+                <button class="full round justify-start" data-dialog="manage_file_path"
+                    data-file-endpoint="/api/v1/project/{{ project.name }}/files:mv/">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="lucide lucide-pencil-line">
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                        <path d="m15 5 3 3" />
+                    </svg>
+
+                    Edit Path
                 </button>
 
                 <button class="full round red justify-start" onclick="window.delete_file();">

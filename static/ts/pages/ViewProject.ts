@@ -73,6 +73,7 @@ if (delete_button) {
 }
 
 // file management
+let file_editor_open: boolean = false;
 for (const element of Array.from(
     document.querySelectorAll(".load_file_info")
 )) {
@@ -109,10 +110,44 @@ for (const element of Array.from(
             }
         };
 
+        (globalThis as any).move_file = async (e: any) => {
+            e.preventDefault();
+
+            loading_modal_inner.innerHTML =
+                "<b>Moving resources!</b> Please wait.";
+            loading_modal.showModal();
+
+            const res = await fetch(endpoint, {
+                method: "POST",
+                body: JSON.stringify({
+                    path: e.target.new_file_path.value,
+                }),
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            loading_modal.close();
+
+            const json = await res.json();
+
+            if (json.success === false) {
+                alert(json.message);
+            } else {
+                window.location.reload();
+            }
+        };
+
         // editor
         const doc_title = document.title;
 
         (globalThis as any).open_file_editor = async () => {
+            if (file_editor_open === true) {
+                return alert("The editor is already open.");
+            }
+
+            file_editor_open = true;
+
             const iframe = document.createElement("iframe");
             iframe.id = "editor";
             iframe.style.display = "block";
@@ -152,6 +187,10 @@ for (const element of Array.from(
                     if (useful_data.doc_title) {
                         document.title = useful_data.doc_title;
                     }
+
+                    if (useful_data.click) {
+                        document.getElementById(useful_data.click)?.click();
+                    }
                 } catch {}
             });
 
@@ -164,6 +203,7 @@ for (const element of Array.from(
                     // handle editor close, the editor internally uses "about:blank" to close
                     iframe.remove();
                     document.title = doc_title;
+                    file_editor_open = false;
                 }
             });
         };
@@ -300,43 +340,6 @@ if (live_url) {
     // )!}.get.${window.location.host}`;
     live_url.href = `/${live_url.getAttribute("data-project")!}`;
     live_url.innerText = live_url.href;
-}
-
-// move file
-for (const element of Array.from(
-    document.querySelectorAll(".load_file_path")
-)) {
-    element.addEventListener("click", () => {
-        const endpoint = element.getAttribute("data-file-endpoint")!;
-
-        (globalThis as any).move_file = async (e: any) => {
-            e.preventDefault();
-
-            loading_modal_inner.innerHTML =
-                "<b>Moving resources!</b> Please wait.";
-            loading_modal.showModal();
-
-            const res = await fetch(endpoint, {
-                method: "POST",
-                body: JSON.stringify({
-                    path: e.target.new_file_path.value,
-                }),
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-
-            loading_modal.close();
-
-            const json = await res.json();
-
-            if (json.success === false) {
-                alert(json.message);
-            } else {
-                window.location.reload();
-            }
-        };
-    });
 }
 
 // default export

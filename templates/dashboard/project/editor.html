@@ -70,7 +70,7 @@
 
     <div class="link-list round secondary" style="display: none; box-shadow: 0 2px 4px hsla(0, 0%, 0%, 25%);"
         id="upper:run">
-        <div class="flex flex-column">
+        <div class="flex flex-column" id="commands_list">
             <button class="option small full justify-space-between"
                 onclick="document.getElementById('preview').click();">
                 Refresh Preview
@@ -80,6 +80,10 @@
             <button class="option small full justify-space-between" onclick="window.FileEditor.Format();">
                 Format
                 <span class="chip mention" style="opacity: 75%;" title="Ctrl+Imperfections">Ctrl+I</span>
+            </button>
+
+            <button class="option small full justify-space-between red" onclick="window.set_editor_content(true);">
+                Reverse All Changes
             </button>
         </div>
     </div>
@@ -134,6 +138,12 @@
         .editor_topbar .button:hover {
             background: var(--background-surface2a);
             box-shadow: none;
+        }
+
+        .link-list {
+            height: max-content;
+            max-height: 100vh;
+            overflow: hidden auto;
         }
     </style>
 
@@ -194,7 +204,16 @@
     <script type="module">
         import { create_editor } from "/static/js/FileEditor.js";
         create_editor(document.getElementById('_doc'), '{{ project.name }}', '{{ file_path }}');
-        globalThis.FileEditor.Update(`{{ file_content|safe }}`)
+
+        window.set_editor_content = (do_confirm) => {
+            if (do_confirm && !confirm("Are you sure you would like to do this?")) {
+                return;
+            }
+
+            globalThis.FileEditor.Update(`{{ file_content|safe }}`);
+        }
+
+        window.set_editor_content();
     </script>
 
     <style>

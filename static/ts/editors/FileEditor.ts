@@ -317,7 +317,7 @@ export function create_editor(
                 const formatted = await prettier.format(
                     (globalThis as any).FileEditor.Content,
                     {
-                        parser: "html",
+                        parser: file_type || "html",
                         plugins: [
                             EstreePlugin,
                             BabelParser,
@@ -490,6 +490,83 @@ export function create_editor(
             window.location.href = "about:blank";
         }
     });
+
+    // commands
+    const is_iframe = window.self !== window.top;
+
+    const commands_list = document.getElementById(
+        "commands_list"
+    ) as HTMLDivElement;
+
+    function add_command(
+        label: string,
+        action: () => void,
+        red: boolean = false
+    ): void {
+        const command = document.createElement("button");
+        command.classList.value = "option small full justify-space-between";
+        command.innerHTML = label;
+        command.addEventListener("click", action);
+        commands_list.appendChild(command);
+
+        if (red === true) {
+            command.classList.add("red");
+        }
+
+        if (is_iframe === false) {
+            command.title = "Command requires external application access!";
+            command.disabled = true;
+        }
+    }
+
+    if (window.top) {
+        add_command("Manage File", () =>
+            window.top!.postMessage(
+                JSON.stringify({
+                    vibrant_editor: {
+                        click: `manage:/${path}`,
+                    },
+                })
+            )
+        );
+
+        add_command("Create New File", () =>
+            window.top!.postMessage(
+                JSON.stringify({
+                    vibrant_editor: {
+                        click: "create_file",
+                    },
+                })
+            )
+        );
+
+        add_command("Upload New File", () =>
+            window.top!.postMessage(
+                JSON.stringify({
+                    vibrant_editor: {
+                        click: "upload_file",
+                    },
+                })
+            )
+        );
+
+        add_command("Create New Project", () =>
+            window.open("/dashboard/project/new")
+        );
+
+        add_command(
+            "Delete Project",
+            () =>
+                window.top!.postMessage(
+                    JSON.stringify({
+                        vibrant_editor: {
+                            click: "delete_project",
+                        },
+                    })
+                ),
+            true
+        );
+    }
 
     // return
     return view;
