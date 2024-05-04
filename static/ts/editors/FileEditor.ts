@@ -57,7 +57,8 @@ export const DefaultHighlight = HighlightStyle.define([
     {
         tag: tags.tagName,
         color: "var(--red3)",
-        textShadow: "0 0 1px var(--red3)",
+        // textShadow: "0 0 1px var(--red3)",
+        fontWeight: 600,
     },
     {
         tag: tags.variableName,
@@ -212,6 +213,36 @@ export function create_editor(
     if (globalThis.Bun) return; // must be run from client
     const file_type = path.split(".").pop();
 
+    let has_unsaved_changes: boolean = true;
+
+    function set_has_unused_changes(val: boolean) {
+        has_unsaved_changes = val;
+
+        if (has_unsaved_changes === true) {
+            document.getElementById("needs_to_save")!.style.display = "flex";
+
+            if (!document.title.startsWith("*")) {
+                document.title = `* ${document.title}`;
+            }
+        } else {
+            document.getElementById("needs_to_save")!.style.display = "none";
+
+            if (document.title.startsWith("*")) {
+                document.title = document.title.substring(2);
+            }
+        }
+
+        if (window.top) {
+            window.top.postMessage(
+                JSON.stringify({
+                    vibrant_editor: {
+                        doc_title: document.title,
+                    },
+                })
+            );
+        }
+    }
+
     const view = new EditorView({
         // @ts-ignore
         state: EditorState.create({
@@ -235,6 +266,7 @@ export function create_editor(
                         const content = update.state.doc.toString();
                         if (content === "") return;
 
+                        set_has_unused_changes(true);
                         (globalThis as any).FileEditor.Content = content;
                     }
                 }),
@@ -412,15 +444,32 @@ export function create_editor(
         if (json.success === false) {
             return alert(json.message);
         } else {
-            return alert("File saved");
+            set_has_unused_changes(false);
+            // return alert("File saved");
         }
     };
 
     // prevent exit
     window.addEventListener("beforeunload", (e) => {
+        if (!has_unsaved_changes) {
+            return;
+        }
+
         e.preventDefault();
         e.returnValue = true;
     });
+
+    (globalThis as any).close_editor = () => {
+        if (has_unsaved_changes) {
+            (
+                document.getElementById("unsaved_changes") as HTMLDialogElement
+            ).showModal();
+            return;
+        }
+
+        set_has_unused_changes(false);
+        window.location.href = "about:blank";
+    };
 
     // keybinds
     document.addEventListener("keydown", (e) => {
@@ -433,6 +482,12 @@ export function create_editor(
         } else if (e.key === "r" && e.ctrlKey) {
             e.preventDefault();
             document.getElementById("preview")!.click();
+        } else if (e.key === "i" && e.ctrlKey) {
+            e.preventDefault();
+            (globalThis as any).FileEditor.Format();
+        } else if (e.key === "d" && e.ctrlKey) {
+            e.preventDefault();
+            window.location.href = "about:blank";
         }
     });
 

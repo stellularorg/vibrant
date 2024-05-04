@@ -199,12 +199,28 @@ for (const avatar of Array.from(avatars) as HTMLImageElement[]) {
         self = self.parentElement!;
     }
 
+    // if ((globalThis as any).current_menu) {
+    //     const menu = (globalThis as any).current_menu as [
+    //         HTMLElement,
+    //         HTMLElement,
+    //     ];
+
+    //     // hide current menu
+    //     menu[0].style.display === "none";
+    //     menu[1].style.removeProperty("background");
+    //     menu[1].style.filter = "unset";
+
+    //     // ...
+    //     (globalThis as any).current_menu = null;
+    // }
+
     // ...
     const menu: HTMLElement | null = document.querySelector(
         id
     ) as HTMLElement | null;
 
     if (menu) {
+        (globalThis as any).current_menu = [menu, self];
         self.classList.toggle("selected");
 
         if (menu.style.display === "none") {

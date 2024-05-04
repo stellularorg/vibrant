@@ -109,10 +109,63 @@ for (const element of Array.from(
             }
         };
 
+        // editor
+        const doc_title = document.title;
+
         (globalThis as any).open_file_editor = async () => {
-            window.open(
-                `${window.location.origin}/dashboard/project/${project}/edit${file}`
-            );
+            const iframe = document.createElement("iframe");
+            iframe.id = "editor";
+            iframe.style.display = "block";
+            iframe.style.position = "absolute";
+            iframe.style.top = "0";
+            iframe.style.left = "0";
+            iframe.style.width = "100dvw";
+            iframe.style.height = "100dvh";
+            iframe.setAttribute("frameborder", "0");
+
+            document.body.appendChild(iframe);
+
+            loading_modal_inner.innerHTML =
+                "<b>Loading editor!</b> Please wait.";
+            loading_modal.showModal();
+
+            // close modal
+            (
+                document.getElementById("manage_file") as HTMLDialogElement
+            ).close();
+
+            // load editor
+            const editor_src = `${window.location.origin}/dashboard/project/${project}/edit${file}`;
+            iframe.src = editor_src;
+
+            // show editor
+            iframe.style.display = "block";
+
+            // events
+            window.addEventListener("message", (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    if (!data.vibrant_editor) return;
+                    const useful_data = data.vibrant_editor;
+
+                    // ...
+                    if (useful_data.doc_title) {
+                        document.title = useful_data.doc_title;
+                    }
+                } catch {}
+            });
+
+            iframe.addEventListener("load", () => {
+                loading_modal.close();
+                document.title = iframe.contentDocument?.title || doc_title;
+
+                const href = iframe.contentWindow?.location.href;
+                if (href !== editor_src) {
+                    // handle editor close, the editor internally uses "about:blank" to close
+                    iframe.remove();
+                    document.title = doc_title;
+                }
+            });
         };
     });
 }

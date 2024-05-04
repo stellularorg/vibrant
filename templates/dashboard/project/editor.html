@@ -6,21 +6,45 @@
 {% block content %}
 <div class="flex flex-column" style="height: 100dvh;">
     <!-- toolbar -->
-    <div class="editor_topbar flex g-4">
-        <button title="Page Options"
-            onclick="window.toggle_child_menu(event.target, '#upper\\:globalmenu', true, false, false)"
-            style="filter: none;">
-            <img src="/static/favicon.svg" alt="Favicon" style="height: 80%;" />
-        </button>
+    <div class="editor_topbar flex g-4 justify-space-between">
+        <!-- global menu -->
+        <div class="flex g-4">
+            <button title="Page Options"
+                onclick="window.toggle_child_menu(event.target, '#upper\\:globalmenu', true, false, false)"
+                style="filter: none;">
+                <img src="/static/favicon.svg" alt="Favicon" style="height: 80%;" />
+            </button>
 
-        <button title="File Options"
-            onclick="window.toggle_child_menu(event.target, '#upper\\:file', true, true)">File</button>
+            <button title="File Options"
+                onclick="window.toggle_child_menu(event.target, '#upper\\:file', true, true)">File</button>
 
-        <button title="Editor Commands"
-            onclick="window.toggle_child_menu(event.target, '#upper\\:editor', true, true)">Editor</button>
+            <button title="Workspace Views"
+                onclick="window.toggle_child_menu(event.target, '#upper\\:view', true, true)">View</button>
 
-        <button title="Workspace Settings"
-            onclick="window.toggle_child_menu(event.target, '#upper\\:settings', true, true)">Settings</button>
+            <button title="Run Editor Commands"
+                onclick="window.toggle_child_menu(event.target, '#upper\\:run', true, true)">Run</button>
+        </div>
+
+        <!-- window options -->
+        <div class="flex g-4">
+            <button id="needs_to_save" style="display: none;" title="Save Changes"
+                onclick="window.save_editor_state();">
+                <b>•</b>
+            </button>
+
+            <button title="Help" aria-label="help" data-dialog="editor_help">
+                ?
+            </button>
+
+            <button title="Close" aria-label="close" onclick="window.close_editor();">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="lucide lucide-x">
+                    <path d="M18 6 6 18" />
+                    <path d="m6 6 12 12" />
+                </svg>
+            </button>
+        </div>
     </div>
 
     <div class="link-list round secondary" style="display: none; box-shadow: 0 2px 4px hsla(0, 0%, 0%, 25%);"
@@ -28,30 +52,40 @@
         <div class="flex flex-column">
             <button class="option small full justify-space-between" onclick="window.save_editor_state();">
                 Save
-                <span class="chip mention" style="opacity: 75%;">Ctrl+S</span>
+                <span class="chip mention" style="opacity: 75%;" title="Ctrl+Save">Ctrl+S</span>
             </button>
 
             <a href="/dashboard/project/{{ project.name }}" class="option button small full justify-space-between"
                 id="open_file_button">
                 Open File
-                <span class="chip mention" style="opacity: 75%;">Ctrl+O</span>
+                <span class="chip mention" style="opacity: 75%;" title="Ctrl+Open">Ctrl+O</span>
             </a>
-        </div>
-    </div>
 
-    <div class="link-list round secondary" style="display: none; box-shadow: 0 2px 4px hsla(0, 0%, 0%, 25%);"
-        id="upper:editor">
-        <div class="flex flex-column">
-            <button class="option small full justify-space-between"
-                onclick="document.getElementById('preview').click();">
-                Refresh Preview
-                <span class="chip mention" style="opacity: 75%;">Ctrl+R</span>
+            <button onclick="window.close_editor();" class="red option button small full justify-space-between">
+                Exit
+                <span class="chip mention" style="opacity: 75%;" title="Ctrl+Destroy">Ctrl+D</span>
             </button>
         </div>
     </div>
 
     <div class="link-list round secondary" style="display: none; box-shadow: 0 2px 4px hsla(0, 0%, 0%, 25%);"
-        id="upper:settings">
+        id="upper:run">
+        <div class="flex flex-column">
+            <button class="option small full justify-space-between"
+                onclick="document.getElementById('preview').click();">
+                Refresh Preview
+                <span class="chip mention" style="opacity: 75%;" title="Ctrl+Refresh">Ctrl+R</span>
+            </button>
+
+            <button class="option small full justify-space-between" onclick="window.FileEditor.Format();">
+                Format
+                <span class="chip mention" style="opacity: 75%;" title="Ctrl+Imperfections">Ctrl+I</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="link-list round secondary" style="display: none; box-shadow: 0 2px 4px hsla(0, 0%, 0%, 25%);"
+        id="upper:view">
         <div class="flex flex-column">
             <div class="option small full flex justify-space-between align-center">
                 <label for="visual_editor" class="full">Visual Editor</label>
@@ -103,7 +137,7 @@
         }
     </style>
 
-    <!-- editor panes -->
+    <!-- editor main -->
     <div class="panes flex mobile:flex-column" style="height: 100%; overflow: auto;">
         <div id="doc_or_visual" style="display: contents;">
             <div id="_doc" class="full" style="height: 100%; overflow: auto; display: block;"></div>
@@ -177,27 +211,48 @@
 </div>
 
 <!-- dialogs -->
-<dialog id="workspace_settings">
+<dialog id="unsaved_changes">
     <div style="width: 25rem; max-width: 100%">
-        <h2 class="no-margin full text-center" style="cursor: pointer">
-            Workspace
-        </h2>
+        <p>You have unsaved changes. Are you sure you would like to close the editor and discard them?</p>
 
         <hr />
 
-        <div class="flex flex-column g-4">
-            <div class="card full round secondary flex justify-space-between align-center">
-                <label for="visual_editor"><b>Visual Editor</b></label>
-                <input type="checkbox" name="visual_editor" id="visual_editor"
-                    style="width: 15px; height: 15px !important;"
-                    onclick="globalThis.FileEditor.visual_editor_enabled = event.target.checked; globalThis.disable_property_window();" />
-            </div>
+        <div class="full flex justify-space-between g-4">
+            <a class="button round" href="javascript:document.getElementById('unsaved_changes').close();">
+                Never Mind
+            </a>
+
+            <a class="button round red" href="about:blank">
+                Close
+            </a>
         </div>
+    </div>
+</dialog>
+
+<dialog id="editor_help">
+    <div style="width: 25rem; max-width: 100%">
+        <h2 class="no-margin full text-center">Help</h2>
+
+        <hr />
+
+        <ul>
+            <li><a href="https://code.stellular.org/stellular/vibrant">Source Code</a></li>
+            <li><a href="https://code.stellular.org/stellular/vibrant/commits/branch/master">Commits</a></li>
+            <li><a href="https://code.stellular.org/stellular/vibrant/projects/2">Road map</a></li>
+        </ul>
+
+        <hr />
+
+        <ul>
+            <li>Project Name: {{ project.name }}</li>
+            <li>Project Owner: {{ project.owner }}</li>
+            <li>File Path: /{{ file_path }}</li>
+        </ul>
 
         <hr />
 
         <div class="full flex justify-right">
-            <a class="button round red" href="javascript:document.getElementById('workspace_settings').close();">
+            <a class="button round red" href="javascript:document.getElementById('editor_help').close();">
                 Close
             </a>
         </div>
