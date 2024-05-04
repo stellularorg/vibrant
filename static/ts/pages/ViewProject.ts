@@ -249,5 +249,42 @@ if (live_url) {
     live_url.innerText = live_url.href;
 }
 
+// move file
+for (const element of Array.from(
+    document.querySelectorAll(".load_file_path")
+)) {
+    element.addEventListener("click", () => {
+        const endpoint = element.getAttribute("data-file-endpoint")!;
+
+        (globalThis as any).move_file = async (e: any) => {
+            e.preventDefault();
+
+            loading_modal_inner.innerHTML =
+                "<b>Moving resources!</b> Please wait.";
+            loading_modal.showModal();
+
+            const res = await fetch(endpoint, {
+                method: "POST",
+                body: JSON.stringify({
+                    path: e.target.new_file_path.value,
+                }),
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            loading_modal.close();
+
+            const json = await res.json();
+
+            if (json.success === false) {
+                alert(json.message);
+            } else {
+                window.location.reload();
+            }
+        };
+    });
+}
+
 // default export
 export default {};

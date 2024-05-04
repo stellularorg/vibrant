@@ -190,7 +190,9 @@ for (const avatar of Array.from(avatars) as HTMLImageElement[]) {
 (globalThis as any).toggle_child_menu = (
     self: HTMLElement,
     id: string,
-    bottom: boolean = true
+    bottom: boolean = true,
+    align_left: boolean = false,
+    invert: boolean = true
 ) => {
     // resolve button
     while (self.nodeName !== "BUTTON") {
@@ -215,12 +217,20 @@ for (const avatar of Array.from(avatars) as HTMLImageElement[]) {
                 menu.style.bottom = `${rect.top + self.offsetTop}px`;
             }
 
+            if (align_left === true) {
+                menu.style.left = `${rect.left}px`;
+            }
+
             // show menu
             menu.style.display = "flex";
 
             // ...
-            self.style.background = "var(--background-surface)";
-            self.style.filter = "invert(1) grayscale(1)";
+            if (invert === true) {
+                self.style.background = "var(--background-surface)";
+                self.style.filter = "invert(1) grayscale(1)";
+            } else {
+                self.style.background = "var(--text-color)";
+            }
 
             // events
             menu.addEventListener("click", (event) => {
@@ -245,7 +255,7 @@ for (const avatar of Array.from(avatars) as HTMLImageElement[]) {
             }, 100);
         } else if (menu.style.display === "flex") {
             menu.style.display = "none";
-            self.style.background = "inherit";
+            self.style.removeProperty("background");
             self.style.filter = "unset";
         }
     }

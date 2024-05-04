@@ -19,6 +19,7 @@ Files can be uploaded to specific projects that are not of the `StaticContainer`
 * `GET /api/v1/project/{PROJECT_NAME}/files` - get all files for the specified `PROJECT_NAME`
 * `GET /api/v1/project/{PROJECT_NAME}/files/{PATH}` - read a file
 * `POST /api/v1/project/{PROJECT_NAME}/files/{PATH}` - create a file
+* `POST /api/v1/project/{PROJECT_NAME}/files:mv/{PATH}` - move a file
 * `PUT /api/v1/project/{PROJECT_NAME}/files/{PATH}` - update a file
 * `DELETE /api/v1/project/{PROJECT_NAME}/files/{PATH}` - delete a file
 

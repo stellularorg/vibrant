@@ -377,6 +377,10 @@ select:focus {
     z-index: 100;
 }
 
+.link-list.secondary {
+    background: var(--background-surface1);
+}
+
 .link-list .option.small {
     padding: var(--u-04) var(--u-10);
 }
@@ -384,7 +388,7 @@ select:focus {
 .link-list .option {
     height: max-content;
     display: flex;
-    justify-content: center;
+    justify-content: start;
     background: transparent;
     padding: var(--u-10);
 }
@@ -395,6 +399,13 @@ select:focus {
 
 .link-list .option:hover {
     background: var(--background-surface1a);
+    box-shadow: none;
+}
+
+@media screen and (max-width: 900px) {
+    .link-list {
+        left: 0 !important;
+    }
 }
 
 /* link header */

@@ -3,7 +3,7 @@ name = "vibrant"
 authors = ["hkau"]
 license = "MIT"
 
-version = "0.2.3"
+version = "0.3.0"
 edition = "2021"
 
 [features]

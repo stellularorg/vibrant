@@ -5,6 +5,105 @@
 
 {% block content %}
 <div class="flex flex-column" style="height: 100dvh;">
+    <!-- toolbar -->
+    <div class="editor_topbar flex g-4">
+        <button title="Page Options"
+            onclick="window.toggle_child_menu(event.target, '#upper\\:globalmenu', true, false, false)"
+            style="filter: none;">
+            <img src="/static/favicon.svg" alt="Favicon" style="height: 80%;" />
+        </button>
+
+        <button title="File Options"
+            onclick="window.toggle_child_menu(event.target, '#upper\\:file', true, true)">File</button>
+
+        <button title="Editor Commands"
+            onclick="window.toggle_child_menu(event.target, '#upper\\:editor', true, true)">Editor</button>
+
+        <button title="Workspace Settings"
+            onclick="window.toggle_child_menu(event.target, '#upper\\:settings', true, true)">Settings</button>
+    </div>
+
+    <div class="link-list round secondary" style="display: none; box-shadow: 0 2px 4px hsla(0, 0%, 0%, 25%);"
+        id="upper:file">
+        <div class="flex flex-column">
+            <button class="option small full justify-space-between" onclick="window.save_editor_state();">
+                Save
+                <span class="chip mention" style="opacity: 75%;">Ctrl+S</span>
+            </button>
+
+            <a href="/dashboard/project/{{ project.name }}" class="option button small full justify-space-between"
+                id="open_file_button">
+                Open File
+                <span class="chip mention" style="opacity: 75%;">Ctrl+O</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="link-list round secondary" style="display: none; box-shadow: 0 2px 4px hsla(0, 0%, 0%, 25%);"
+        id="upper:editor">
+        <div class="flex flex-column">
+            <button class="option small full justify-space-between"
+                onclick="document.getElementById('preview').click();">
+                Refresh Preview
+                <span class="chip mention" style="opacity: 75%;">Ctrl+R</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="link-list round secondary" style="display: none; box-shadow: 0 2px 4px hsla(0, 0%, 0%, 25%);"
+        id="upper:settings">
+        <div class="flex flex-column">
+            <div class="option small full flex justify-space-between align-center">
+                <label for="visual_editor" class="full">Visual Editor</label>
+                <input type="checkbox" name="visual_editor" id="visual_editor"
+                    style="width: 15px; height: 15px !important;"
+                    onclick="globalThis.FileEditor.visual_editor_enabled = event.target.checked; globalThis.disable_property_window();" />
+            </div>
+
+            <div class="option small full flex justify-space-between align-center">
+                <label for="split_view" class="full">Split View</label>
+                <input type="checkbox" name="split_view" id="split_view"
+                    style="width: 15px; height: 15px !important;" />
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .editor_topbar {
+            padding: 2.5px;
+            background: var(--background-surface1);
+            border-bottom: solid 1px var(--background-surface2a);
+            height: 31px !important;
+            overflow: auto hidden;
+        }
+
+        .editor_topbar span {
+            --height: 25px;
+            height: var(--height) !important;
+            min-height: var(--height) !important;
+            padding: 0 var(--u-04);
+            font-size: 14px;
+        }
+
+        .editor_topbar button,
+        .editor_topbar .button {
+            --height: 25px;
+            font-size: 14px;
+            padding: 0 var(--u-04);
+            background: transparent;
+            border-radius: var(--u-02);
+            height: var(--height) !important;
+            min-height: var(--height) !important;
+        }
+
+        .editor_topbar button:hover,
+        .editor_topbar .button:hover {
+            background: var(--background-surface2a);
+            box-shadow: none;
+        }
+    </style>
+
+    <!-- editor panes -->
     <div class="panes flex mobile:flex-column" style="height: 100%; overflow: auto;">
         <div id="doc_or_visual" style="display: contents;">
             <div id="_doc" class="full" style="height: 100%; overflow: auto; display: block;"></div>
@@ -12,9 +111,9 @@
         </div>
 
         <div id="_preview_browser" class="full" style="height: 100%; overflow: hidden; display: none;">
-            <div class="full flex g-4 bg-0" style="padding: var(--u-04); height: 47.8px;">
+            <div class="editor_topbar full flex g-4 bg-0">
                 <button class="round" id="preview" title="Refresh Preview">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                         class="lucide lucide-refresh-cw">
                         <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
@@ -22,21 +121,12 @@
                         <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
                         <path d="M8 16H3v5" />
                     </svg>
-                </button>
 
-                <button class="round" data-dialog="workspace_settings" title="Workspace Settings">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="lucide lucide-settings-2">
-                        <path d="M20 7h-9" />
-                        <path d="M14 17H5" />
-                        <circle cx="17" cy="17" r="3" />
-                        <circle cx="7" cy="7" r="3" />
-                    </svg>
+                    Refresh
                 </button>
             </div>
 
-            <iframe id="_preview_pane" class="full" style="height: calc(100% - 47.8px); overflow: auto;" frameborder="0"
+            <iframe id="_preview_pane" class="full" style="height: calc(100% - 31px); overflow: auto;" frameborder="0"
                 src="about:blank"></iframe>
         </div>
 
@@ -58,51 +148,14 @@
         </style>
     </div>
 
-    <div class="card secondary flex mobile:justify-center justify-space-between align-center" style="
-        overflow: auto hidden;
+    <!-- bottom bar -->
+    <!-- <div class="editor_topbar" style="
         border-top: 1px solid var(--background-surface2a);
-        padding: var(--u-04);
-        height: 47.8px;
+        border-bottom: 0;
     ">
-        <b style="min-width: max-content;" class="device:desktop">{{ file_path }}</b>
-
-        <div class="flex g-4">
-            <button class="round secondary green" id="save" title="Save File">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    class="lucide lucide-save">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                    <polyline points="17 21 17 13 7 13 7 21" />
-                    <polyline points="7 3 7 8 15 8" />
-                </svg>
-            </button>
-
-            <a href="/dashboard/project/{{ project.name }}" class="button round secondary" id="file_explorer"
-                title="Manage Files">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    class="lucide lucide-folder-tree">
-                    <path
-                        d="M20 10a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 1-.8-.4l-.9-1.2A1 1 0 0 0 15 3h-2a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z" />
-                    <path
-                        d="M20 21a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-2.9a1 1 0 0 1-.88-.55l-.42-.85a1 1 0 0 0-.92-.6H13a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z" />
-                    <path d="M3 5a2 2 0 0 0 2 2h3" />
-                    <path d="M3 3v13a2 2 0 0 0 2 2h3" />
-                </svg>
-            </a>
-
-            <div class="hr-left"></div>
-
-            <button class="round secondary red" id="split_view" title="Split View">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    class="lucide lucide-columns-2">
-                    <rect width="18" height="18" x="3" y="3" rx="2" />
-                    <path d="M12 3v18" />
-                </svg>
-            </button>
-        </div>
-    </div>
+        <span style="min-width: max-content;">{{ file_path }}</span>
+        <div class="flex g-4"></div>
+    </div> -->
 
     <script type="module">
         import { create_editor } from "/static/js/FileEditor.js";

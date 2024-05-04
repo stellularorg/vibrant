@@ -19,7 +19,7 @@ pub struct AppData {
 }
 
 // base structures
-#[derive(Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ProjectRequestLimit {
     /// project can serve 1,000,000 requests per billing period
     Default = 1_000_000,
@@ -32,6 +32,12 @@ pub enum ProjectRequestLimit {
 impl Default for ProjectRequestLimit {
     fn default() -> Self {
         ProjectRequestLimit::Default
+    }
+}
+
+impl std::fmt::Display for ProjectRequestLimit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
     }
 }
 
@@ -1116,7 +1122,7 @@ impl Database {
 
         // ...
         let original_base64 = row.get("content").unwrap();
-        let bytes = base64::engine::general_purpose::URL_SAFE.decode(original_base64);
+        let bytes = base64::engine::general_purpose::STANDARD.decode(original_base64);
 
         if bytes.is_err() {
             return DefaultReturn {
@@ -1205,7 +1211,7 @@ impl Database {
         //     let content = cached.unwrap();
 
         //     // decode
-        //     let bytes = base64::engine::general_purpose::URL_SAFE.decode(content);
+        //     let bytes = base64::engine::general_purpose::STANDARD.decode(content);
 
         //     if bytes.is_err() {
         //         return DefaultReturn {
@@ -1553,6 +1559,108 @@ impl Database {
         return DefaultReturn {
             success: true,
             message: String::from("File deleted"),
+            payload: Option::Some(path),
+        };
+    }
+
+    /// Move a file by `path` to `new_path` in the given [`Project`]
+    pub async fn move_file_in_project(
+        &self,
+        name: String,
+        mut path: String,
+        mut new_path: String,
+        edit_as: Option<String>,
+    ) -> DefaultReturn<Option<String>> {
+        // get project
+        let existing = self.get_project_by_id(name.clone()).await;
+
+        if existing.success == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Project does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        let project = existing.payload.unwrap();
+
+        // get edit_as user account
+        let ua = if edit_as.is_some() {
+            Option::Some(
+                self.auth
+                    .get_user_by_username(edit_as.clone().unwrap())
+                    .await
+                    .payload,
+            )
+        } else {
+            Option::None
+        };
+
+        if ua.is_none() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("An account is required to do this"),
+                payload: Option::None,
+            };
+        }
+
+        // make sure we can do this
+        let user = ua.unwrap().unwrap();
+        let can_edit: bool = (user.user.username == project.owner)
+            | (user.level.permissions.contains(&String::from("VIB:Admin")));
+
+        if can_edit == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from(
+                    "You do not have permission to manage this project's contents.",
+                ),
+                payload: Option::None,
+            };
+        }
+
+        // check path
+        if !path.starts_with("/") {
+            path = format!("/{}", path);
+        }
+
+        if !new_path.starts_with("/") {
+            new_path = format!("/{}", new_path);
+        }
+
+        // ...
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
+            "UPDATE \"ProjectFiles\" SET \"path\" = ? WHERE \"project\" = ? AND \"path\" = ?"
+        } else {
+            "UPDATE \"ProjectFiles\" SET (\"path\") = ($1) WHERE \"project\" = $2 AND \"path\" = $3"
+        };
+
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
+            .bind::<&String>(&new_path)
+            .bind::<&String>(&name)
+            .bind::<&String>(&path)
+            .execute(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
+        // remove from cache
+        self.base
+            .cachedb
+            .remove(format!("project:{}:path:{}", name, path))
+            .await;
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("File moved"),
             payload: Option::Some(path),
         };
     }

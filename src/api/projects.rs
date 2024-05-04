@@ -497,3 +497,47 @@ pub async fn delete_file_request(req: HttpRequest, data: web::Data<AppData>) -> 
         .append_header(("Set-Cookie", set_cookie))
         .body(serde_json::to_string(&res).unwrap());
 }
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct PMoveFile {
+    pub path: String,
+}
+
+#[post("/api/v1/project/{name:.*}/files:mv/{path:.*}")]
+/// Move a file in a project
+pub async fn move_file_request(
+    req: HttpRequest,
+    body: web::Json<PMoveFile>,
+    data: web::Data<AppData>,
+) -> impl Responder {
+    let project_name = req.match_info().get("name").unwrap();
+    let path = req.match_info().get("path").unwrap();
+
+    // verify auth status
+    let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
+
+    if token_user.is_none() {
+        return HttpResponse::NotAcceptable().body("An account is required to edit projects.");
+    }
+
+    // ...
+    let res = data
+        .db
+        .move_file_in_project(
+            project_name.to_string(),
+            path.to_string(),
+            body.path.clone(),
+            if token_user.is_some() {
+                Option::Some(token_user.unwrap().payload.unwrap().user.username)
+            } else {
+                Option::None
+            },
+        )
+        .await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .append_header(("Set-Cookie", set_cookie))
+        .body(serde_json::to_string(&res).unwrap());
+}

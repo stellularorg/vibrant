@@ -92,6 +92,7 @@
             <li><b>CID</b>: {{ project.private_metadata.cid.clone().unwrap_or(String::from("Project does not own a
                 container")) }}</li>
             <li><b>Requests</b>: {{ asset_requests }}</li>
+            <li><b>Request Limit</b>: {{ project.private_metadata.limit }}</li>
             <li><b>Hosted</b>: <a id="live_url" data-project="{{ project.name }}" target="_blank" href="#"></a></li>
             <li><b>File Privacy</b>: {{ project.metadata.file_privacy }}</li>
         </ul>
@@ -148,7 +149,22 @@
         <tbody>
             {% for f in files.iter() %}
             <tr>
-                <td><a href="/api/v1/project/{{ project.name }}/files{{ f }}">{{ f }}</a></td>
+                <td>
+                    <div class="flex align-center g-4">
+                        <a href="#" class="flex load_file_path" data-dialog="manage_file_path"
+                            data-file-endpoint="/api/v1/project/{{ project.name }}/files:mv/{{ f }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="lucide lucide-pencil-line">
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                                <path d="m15 5 3 3" />
+                            </svg>
+                        </a>
+
+                        <a href="/api/v1/project/{{ project.name }}/files{{ f }}">{{ f }}</a>
+                    </div>
+                </td>
 
                 <td class="flex g-4 flex-wrap">
                     <button class="secondary round load_file_info" data-dialog="manage_file"
@@ -206,6 +222,31 @@
 
             <div class="full flex justify-right">
                 <a class="button round red" href="javascript:document.getElementById('manage_file').close();">
+                    Close
+                </a>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog id="manage_file_path">
+        <div style="width: 25rem; max-width: 100%;">
+            <h2 class="no-margin full text-center">Change Path</h2>
+
+            <hr />
+
+            <form class="flex g-4" onsubmit="window.move_file(event);">
+                <input class="round secondary full" type="text" id="new_file_path" name="new_file_path" minlength="1"
+                    required />
+
+                <button class="theme:primary round" style="width: 80px;">
+                    Save
+                </button>
+            </form>
+
+            <hr />
+
+            <div class="full flex justify-right">
+                <a class="button round red" href="javascript:document.getElementById('manage_file_path').close();">
                     Close
                 </a>
             </div>

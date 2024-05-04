@@ -391,41 +391,49 @@ export function create_editor(
         });
     }
 
-    const save_button = document.getElementById(
-        "save"
-    ) as HTMLButtonElement | null;
-
-    if (save_button) {
-        save_button.addEventListener("click", async () => {
-            const res = await fetch(
-                `/api/v1/project/${project_name}/files/${path}`,
-                {
-                    method: "PUT",
-                    body: JSON.stringify({
-                        content: await base64_string(
-                            (globalThis as any).FileEditor.Content
-                        ),
-                    }),
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
-
-            const json = await res.json();
-
-            if (json.success === false) {
-                return alert(json.message);
-            } else {
-                return alert("File saved");
+    (globalThis as any).save_editor_state = async () => {
+        const res = await fetch(
+            `/api/v1/project/${project_name}/files/${path}`,
+            {
+                method: "PUT",
+                body: JSON.stringify({
+                    content: await base64_string(
+                        (globalThis as any).FileEditor.Content
+                    ),
+                }),
+                headers: {
+                    "Content-Type": "application/json",
+                },
             }
-        });
-    }
+        );
+
+        const json = await res.json();
+
+        if (json.success === false) {
+            return alert(json.message);
+        } else {
+            return alert("File saved");
+        }
+    };
 
     // prevent exit
     window.addEventListener("beforeunload", (e) => {
         e.preventDefault();
         e.returnValue = true;
+    });
+
+    // keybinds
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "s" && e.ctrlKey) {
+            e.preventDefault();
+            (globalThis as any).save_editor_state();
+        } else if (e.key === "o" && e.ctrlKey) {
+            e.preventDefault();
+            document.getElementById("open_file_button")!.click();
+        } else if (e.key === "r" && e.ctrlKey) {
+            e.preventDefault();
+            document.getElementById("preview")!.click();
+        }
     });
 
     // return
@@ -569,7 +577,7 @@ function build_element_property_window(element: HTMLElement): void {
     // property_window.style.position = "fixed";
     // property_window.style.top = "0";
     // property_window.style.left = "0";
-    property_window.style.width = "25rem";
+    property_window.style.width = "35rem";
     property_window.style.maxWidth = "100dvw";
     // property_window.style.maxHeight = "calc(50% - 22px)";
     property_window.style.maxHeight = "100%";

@@ -102,6 +102,7 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::auth::callback_request)
             .service(crate::api::projects::create_request)
             .service(crate::api::projects::insert_file_request) // StaticFiles projects
+            .service(crate::api::projects::move_file_request) // StaticFiles projects
             .service(crate::api::projects::edit_script_request)
             // PUT api
             .service(crate::api::projects::update_file_request) // StaticFiles projects
