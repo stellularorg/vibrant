@@ -1,4 +1,4 @@
-use crate::db::{AppData, PCreateProject};
+use crate::db::{AppData, PCreateProject, PEditFieldsByName, ProjectMetadata};
 use actix_files::file_extension_to_mime;
 use actix_web::{delete, get, post, put, web, HttpRequest, HttpResponse, Responder};
 use dorsal::DefaultReturn;
@@ -118,6 +118,85 @@ pub async fn get_script_request(req: HttpRequest, data: web::Data<AppData>) -> i
     return HttpResponse::Ok()
         .append_header(("Content-Type", "application/x-sh"))
         .body(metadata.script);
+}
+
+#[post("/api/v1/project/{name:.*}/fields")]
+/// Update a project's fields
+pub async fn update_fields_request(
+    req: HttpRequest,
+    body: web::Json<PEditFieldsByName>,
+    data: web::Data<AppData>,
+) -> impl Responder {
+    let project_name = req.match_info().get("name").unwrap();
+
+    // verify auth status
+    let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
+
+    if token_user.is_none() {
+        return HttpResponse::NotAcceptable().body("An account is required to edit projects.");
+    }
+
+    // update project
+    let res = data
+        .db
+        .edit_fields_by_name(
+            project_name.to_string(),
+            body.0,
+            if token_user.is_some() {
+                Option::Some(token_user.unwrap().payload.unwrap().user.username)
+            } else {
+                Option::None
+            },
+        )
+        .await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Set-Cookie", set_cookie))
+        .append_header(("Content-Type", "application/json"))
+        .body(serde_json::to_string::<dorsal::DefaultReturn<Option<String>>>(&res).unwrap());
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct PUpdateMetadata {
+    pub metadata: ProjectMetadata,
+}
+
+#[post("/api/v1/project/{name:.*}/metadata")]
+/// Update a project's metadata
+pub async fn update_metadata_request(
+    req: HttpRequest,
+    body: web::Json<PUpdateMetadata>,
+    data: web::Data<AppData>,
+) -> impl Responder {
+    let project_name = req.match_info().get("name").unwrap();
+
+    // verify auth status
+    let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
+
+    if token_user.is_none() {
+        return HttpResponse::NotAcceptable().body("An account is required to edit projects.");
+    }
+
+    // update project
+    let res = data
+        .db
+        .edit_project_metadata_by_name(
+            project_name.to_string(),
+            body.metadata.clone(),
+            if token_user.is_some() {
+                Option::Some(token_user.unwrap().payload.unwrap().user.username)
+            } else {
+                Option::None
+            },
+        )
+        .await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Set-Cookie", set_cookie))
+        .append_header(("Content-Type", "application/json"))
+        .body(serde_json::to_string::<dorsal::DefaultReturn<Option<String>>>(&res).unwrap());
 }
 
 #[delete("/api/v1/project/{name:.*}")]

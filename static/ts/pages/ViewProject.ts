@@ -335,12 +335,19 @@ const live_url = document.getElementById(
     "live_url"
 ) as HTMLAnchorElement | null;
 
-if (live_url) {
+const live_url_1 = document.getElementById(
+    "live_url_1"
+) as HTMLAnchorElement | null;
+
+if (live_url && live_url_1) {
     // live_url.href = `${window.location.protocol}//${live_url.getAttribute(
     //     "data-project"
     // )!}.get.${window.location.host}`;
     live_url.href = `/${live_url.getAttribute("data-project")!}`;
     live_url.innerText = live_url.href;
+
+    live_url_1.href = `${window.location.protocol}//${live_url.getAttribute("data-project")!}.${window.location.host}`;
+    live_url_1.innerText = live_url_1.href;
 }
 
 // default export

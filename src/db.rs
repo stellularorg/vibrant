@@ -123,7 +123,7 @@ impl Default for ProjectPrivateMetadata {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectMetadata {
     /// Simple bash script to run deployment commands
     #[serde(default)]
@@ -138,6 +138,12 @@ impl Default for ProjectMetadata {
             script: String::new(),
             file_privacy: ProjectFilePrivacy::default(),
         }
+    }
+}
+
+impl std::fmt::Display for ProjectMetadata {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", serde_json::to_string(self).unwrap())
     }
 }
 
@@ -168,6 +174,13 @@ pub struct PCreateProject {
     /// must be unique
     pub name: String,
     pub r#type: ProjectType,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct PEditFieldsByName {
+    /// must be unique
+    pub name: String,
+    pub owner: String,
 }
 
 // server
@@ -572,7 +585,7 @@ impl Database {
         // clear user projects at all layers
         self.base
             .cachedb
-            .remove_starting_with(format!("projects-by-owner:{}*", user.user.username))
+            .remove_starting_with(format!("projects-by-owner:{}:*", user.user.username))
             .await;
 
         // create container
@@ -584,6 +597,186 @@ impl Database {
             success: true,
             message: String::from("Project created"),
             payload: Option::Some(props.to_owned()),
+        };
+    }
+
+    /// Update a [`Project`]'s [`fields`](PEditFieldsByName) by its `name`
+    pub async fn edit_fields_by_name(
+        &self,
+        name: String,
+        mut fields: PEditFieldsByName,
+        edit_as: Option<String>, // username of account that is editing this project
+    ) -> DefaultReturn<Option<String>> {
+        // make sure project exists
+        let existing = &self.get_project_by_id(name.clone()).await;
+        if !existing.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Project does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        let project = existing.payload.as_ref().unwrap();
+
+        // make sure the new name is valid
+        if fields.name.len() < 2 {
+            fields.name = project.name.clone();
+        }
+
+        // get edit_as user account
+        let ua = if edit_as.is_some() {
+            Option::Some(
+                self.auth
+                    .get_user_by_username(edit_as.clone().unwrap())
+                    .await
+                    .payload,
+            )
+        } else {
+            Option::None
+        };
+
+        if ua.is_none() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("An account is required to do this"),
+                payload: Option::None,
+            };
+        }
+
+        // make sure we can do this
+        let user = ua.unwrap().unwrap();
+        let can_edit: bool = (user.user.username == project.owner)
+            | (user.level.permissions.contains(&String::from("VIB:Admin")));
+
+        if can_edit == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from(
+                    "You do not have permission to manage this project's contents.",
+                ),
+                payload: Option::None,
+            };
+        }
+
+        // if user does not have correct permission to edit owner
+        if !user
+            .level
+            .permissions
+            .contains(&"VIB:Actions:EditOwner".to_string())
+        {
+            fields.owner = user.user.username.clone();
+        }
+
+        // check if project already exists under new name
+        if name != fields.name {
+            let existing = &self.get_project_by_id(fields.name.clone()).await;
+
+            if existing.success {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from("This project name is already in use!"),
+                    payload: Option::None,
+                };
+            }
+        }
+
+        // update project
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
+            "UPDATE \"Projects\" SET \"owner\" = ?, \"name\" = ? WHERE \"name\" = ?"
+        } else {
+            "UPDATE \"Projects\" SET (\"owner\", \"name\") = ($1, $2) WHERE \"name\" = $2"
+        };
+
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
+            .bind::<&String>(&fields.owner)
+            .bind::<&String>(&fields.name)
+            .bind::<&String>(&name)
+            .execute(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
+        // update files
+        if name != fields.name {
+            let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql")
+            {
+                "UPDATE \"ProjectFiles\" SET \"project\" = ? WHERE \"project\" = ?"
+            } else {
+                "UPDATE \"ProjectFiles\" SET (\"project\") = ($1) WHERE \"project\" = $2"
+            };
+
+            let c = &self.base.db.client;
+            let res = sqlquery(query)
+                .bind::<&String>(&fields.name)
+                .bind::<&String>(&name)
+                .execute(c)
+                .await;
+
+            if res.is_err() {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from(res.err().unwrap().to_string()),
+                    payload: Option::None,
+                };
+            }
+        }
+
+        // update cache
+        let existing_in_cache = self.base.cachedb.get(format!("project:{}", name)).await;
+
+        if existing_in_cache.is_some() {
+            let mut project = serde_json::from_str::<Project>(&existing_in_cache.unwrap()).unwrap();
+
+            project.owner = fields.owner;
+            project.name = fields.name.clone();
+
+            if name != fields.name {
+                // remove old
+                self.base.cachedb.remove(format!("project:{}", name)).await;
+
+                self.base
+                    .cachedb
+                    .remove_starting_with(format!("project:{}:*", name))
+                    .await;
+
+                self.base
+                    .cachedb
+                    .remove_starting_with(format!("projects-by-owner:{}:*", user.user.username))
+                    .await;
+
+                // insert new
+                self.base
+                    .cachedb
+                    .set(
+                        format!("project:{}", fields.name),
+                        serde_json::to_string::<Project>(&project).unwrap(),
+                    )
+                    .await;
+            } else {
+                // update cache
+                self.base
+                    .cachedb
+                    .update(
+                        format!("project:{}", name),
+                        serde_json::to_string::<Project>(&project).unwrap(),
+                    )
+                    .await;
+            }
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Project updated!"),
+            payload: Option::Some(fields.name),
         };
     }
 
@@ -931,16 +1124,17 @@ impl Database {
 
         // update cache
         // self.base.cachedb.remove(format!("project:{}", name)).await;
+        self.base.cachedb.remove(format!("project:{}", name)).await;
         self.base
             .cachedb
-            .remove_starting_with(format!("project:{}*", name))
+            .remove_starting_with(format!("project:{}:*", name))
             .await;
 
         if delete_as.is_some() {
             self.base
                 .cachedb
                 .remove_starting_with(format!(
-                    "projects-by-owner:{}*",
+                    "projects-by-owner:{}:*",
                     delete_as.as_ref().unwrap()
                 ))
                 .await;

@@ -78,6 +78,17 @@ struct ProjectFileEditorTemplate {
     body_embed: String,
 }
 
+#[derive(Template)]
+#[template(path = "dashboard/project/settings.html")]
+struct ProjectSettingsTemplate {
+    project: Project,
+    // required fields (super::base)
+    auth_state: bool,
+    guppy: String,
+    bundlrs: String,
+    body_embed: String,
+}
+
 #[get("/dashboard")]
 pub async fn dashboard_request(
     req: HttpRequest,
@@ -367,6 +378,60 @@ pub async fn project_file_editor_request(
                     .replace("`", "\\`")
                     .replace("$", "\\$")
                     .replace("/", "\\/"),
+                // required fields
+                auth_state: base.auth_state,
+                guppy: base.guppy,
+                bundlrs: base.bundlrs,
+                body_embed: base.body_embed,
+            }
+            .render()
+            .unwrap(),
+        );
+}
+
+#[get("/dashboard/project/{project:.*}/settings")]
+pub async fn project_settings_request(
+    req: HttpRequest,
+    data: web::Data<crate::db::AppData>,
+) -> impl Responder {
+    let project_name = req.match_info().get("project").unwrap();
+
+    // verify auth status
+    let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
+
+    if token_user.is_none() {
+        let base = base::get_base_values(token_user.is_some());
+        return HttpResponse::NotAcceptable()
+            .append_header(("Set-Cookie", set_cookie))
+            .append_header(("Content-Type", "text/html"))
+            .body(
+                AuthPickerTemplate {
+                    // required fields
+                    auth_state: base.auth_state,
+                    guppy: base.guppy,
+                    bundlrs: base.bundlrs,
+                    body_embed: base.body_embed,
+                }
+                .render()
+                .unwrap(),
+            );
+    }
+
+    // fetch project
+    let project = data.db.get_project_by_id(project_name.to_string()).await;
+
+    if !project.success {
+        return super::errors::error404(req, data).await;
+    }
+
+    // ...
+    let base = base::get_base_values(token_user.is_some());
+    return HttpResponse::Ok()
+        .append_header(("Set-Cookie", set_cookie))
+        .append_header(("Content-Type", "text/html"))
+        .body(
+            ProjectSettingsTemplate {
+                project: project.payload.unwrap(),
                 // required fields
                 auth_state: base.auth_state,
                 guppy: base.guppy,

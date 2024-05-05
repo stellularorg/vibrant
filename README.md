@@ -37,3 +37,4 @@ A user's project limits are controlled by a few permissions:
 * `VIB:RequestLimit:Default`
 * `VIB:RequestLimit:Enterprise`
 * `VIB:RequestLimit:Disabled`
+* `VIB:Actions:EditOwner` - denotes a user's ability to edit project ownership
