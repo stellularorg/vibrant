@@ -79,6 +79,7 @@ for (const element of Array.from(
 )) {
     element.addEventListener("click", () => {
         const endpoint = element.getAttribute("data-file-endpoint")!;
+        const mv_endpoint = element.getAttribute("data-file-mv-endpoint")!;
         const project = element.getAttribute("data-project")!;
         const file = element.getAttribute("data-file")!;
 
@@ -117,7 +118,7 @@ for (const element of Array.from(
                 "<b>Moving resources!</b> Please wait.";
             loading_modal.showModal();
 
-            const res = await fetch(endpoint, {
+            const res = await fetch(mv_endpoint, {
                 method: "POST",
                 body: JSON.stringify({
                     path: e.target.new_file_path.value,
