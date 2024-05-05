@@ -478,6 +478,35 @@ impl Database {
         let existing = self.get_project_by_id(props.name.clone()).await;
 
         if existing.success | existing.payload.is_some() {
+            // check if project has no files
+            // we can claim over projects with nothing
+            let existing_project_files = self
+                .get_project_files(props.name.clone(), Option::None, true)
+                .await;
+
+            if (existing_project_files.success == true) && existing_project_files.payload.is_empty()
+            {
+                let username = as_user.as_ref().unwrap();
+                let res = self
+                    .edit_fields_by_name(
+                        props.name.clone(),
+                        PEditFieldsByName {
+                            name: String::new(),
+                            owner: username.to_string(),
+                        },
+                        as_user.clone(),
+                        true,
+                    )
+                    .await;
+
+                return DefaultReturn {
+                    success: res.success,
+                    message: res.message,
+                    payload: Option::Some(props.clone()),
+                };
+            }
+
+            // ...
             return DefaultReturn {
                 success: false,
                 message: String::from("A project with this name already exists!"),
@@ -606,6 +635,7 @@ impl Database {
         name: String,
         mut fields: PEditFieldsByName,
         edit_as: Option<String>, // username of account that is editing this project
+        bypass_user_checks: bool,
     ) -> DefaultReturn<Option<String>> {
         // make sure project exists
         let existing = &self.get_project_by_id(name.clone()).await;
@@ -618,6 +648,7 @@ impl Database {
         }
 
         let project = existing.payload.as_ref().unwrap();
+        let original_project = project.owner.clone();
 
         // make sure the new name is valid
         if fields.name.len() < 2 {
@@ -649,7 +680,7 @@ impl Database {
         let can_edit: bool = (user.user.username == project.owner)
             | (user.level.permissions.contains(&String::from("VIB:Admin")));
 
-        if can_edit == false {
+        if (can_edit == false) && (bypass_user_checks != true) {
             return DefaultReturn {
                 success: false,
                 message: String::from(
@@ -735,8 +766,20 @@ impl Database {
         if existing_in_cache.is_some() {
             let mut project = serde_json::from_str::<Project>(&existing_in_cache.unwrap()).unwrap();
 
-            project.owner = fields.owner;
+            project.owner = fields.owner.clone();
             project.name = fields.name.clone();
+
+            if original_project != fields.owner {
+                self.base
+                    .cachedb
+                    .remove_starting_with(format!("projects-by-owner:{}:*", original_project))
+                    .await;
+
+                self.base
+                    .cachedb
+                    .remove_starting_with(format!("projects-by-owner:{}:*", fields.owner))
+                    .await;
+            }
 
             if name != fields.name {
                 // remove old

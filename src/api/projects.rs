@@ -147,6 +147,7 @@ pub async fn update_fields_request(
             } else {
                 Option::None
             },
+            false,
         )
         .await;
 
