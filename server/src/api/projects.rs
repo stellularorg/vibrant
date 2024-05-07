@@ -621,3 +621,31 @@ pub async fn move_file_request(
         .append_header(("Set-Cookie", set_cookie))
         .body(serde_json::to_string(&res).unwrap());
 }
+
+#[post("/api/v1/project/{name:.*}/favorite")]
+/// Toggle a project favorite
+pub async fn favorite_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
+    let project_name = req.match_info().get("name").unwrap();
+
+    // verify auth status
+    let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
+
+    if token_user.is_none() {
+        return HttpResponse::NotAcceptable().body("An account is required to favorite projects.");
+    }
+
+    // ...
+    let res = data
+        .db
+        .toggle_user_project_favorite(
+            token_user.unwrap().payload.unwrap().user.username,
+            project_name.to_string(),
+        )
+        .await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .append_header(("Set-Cookie", set_cookie))
+        .body(serde_json::to_string(&res).unwrap());
+}

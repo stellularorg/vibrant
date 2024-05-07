@@ -1,6 +1,6 @@
 use actix_web::{get, web, HttpRequest, HttpResponse, Responder};
 
-use crate::db::{PCreateProject, Project};
+use crate::db::{PCreateProject, Project, ProjectFilePrivacy};
 
 use super::base;
 use askama::Template;
@@ -58,6 +58,20 @@ struct ProjectViewTemplate {
     project: Project,
     files: Vec<String>,
     asset_requests: String,
+    favorites_count: i32,
+    // required fields (super::base)
+    auth_state: bool,
+    guppy: String,
+    bundlrs: String,
+    body_embed: String,
+}
+
+#[derive(Template)]
+#[template(path = "dashboard/project/public.html")]
+struct ProjectPublicTemplate {
+    project: Project,
+    favorites_count: i32,
+    has_favorited: bool,
     // required fields (super::base)
     auth_state: bool,
     guppy: String,
@@ -272,6 +286,12 @@ pub async fn project_view_request(
         return super::errors::error404(req, data).await;
     }
 
+    let favorites_count = data
+        .db
+        .get_project_favorites(project_name.to_string())
+        .await
+        .payload;
+
     // fetch project files
     let files = data
         .db
@@ -298,6 +318,87 @@ pub async fn project_view_request(
                     .get(format!("billing:requests:{}", project_name))
                     .await
                     .unwrap_or("0".to_string()),
+                favorites_count,
+                // required fields
+                auth_state: base.auth_state,
+                guppy: base.guppy,
+                bundlrs: base.bundlrs,
+                body_embed: base.body_embed,
+            }
+            .render()
+            .unwrap(),
+        );
+}
+
+#[get("/social/{project:.*}")]
+pub async fn project_public_view_request(
+    req: HttpRequest,
+    data: web::Data<crate::db::AppData>,
+) -> impl Responder {
+    let project_name = req.match_info().get("project").unwrap();
+
+    // verify auth status
+    let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
+
+    if token_user.is_none() {
+        let base = base::get_base_values(token_user.is_some());
+        return HttpResponse::NotAcceptable()
+            .append_header(("Set-Cookie", set_cookie))
+            .append_header(("Content-Type", "text/html"))
+            .body(
+                AuthPickerTemplate {
+                    // required fields
+                    auth_state: base.auth_state,
+                    guppy: base.guppy,
+                    bundlrs: base.bundlrs,
+                    body_embed: base.body_embed,
+                }
+                .render()
+                .unwrap(),
+            );
+    }
+
+    // fetch project
+    let project = data.db.get_project_by_id(project_name.to_string()).await;
+
+    if !project.success {
+        return super::errors::error404(req, data).await;
+    }
+
+    // check project file privacy
+    let project = project.payload.unwrap();
+
+    if project.metadata.file_privacy != ProjectFilePrivacy::Public {
+        return super::errors::error404(req, data).await;
+    }
+
+    // favorites
+    let favorites_count = data
+        .db
+        .get_project_favorites(project_name.to_string())
+        .await
+        .payload;
+
+    let has_favorited = if token_user.is_none() {
+        false
+    } else {
+        let user = token_user.clone().unwrap().payload.unwrap();
+        data.db
+            .get_user_project_favorite(user.user.username, project_name.to_string(), false)
+            .await
+            .success
+    };
+
+    // ...
+    let base = base::get_base_values(token_user.is_some());
+    return HttpResponse::Ok()
+        .append_header(("Set-Cookie", set_cookie))
+        .append_header(("Content-Type", "text/html"))
+        .body(
+            ProjectPublicTemplate {
+                project,
+                favorites_count,
+                has_favorited,
                 // required fields
                 auth_state: base.auth_state,
                 guppy: base.guppy,

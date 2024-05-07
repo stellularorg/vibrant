@@ -106,6 +106,7 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::projects::edit_script_request)
             .service(crate::api::projects::update_metadata_request)
             .service(crate::api::projects::update_fields_request)
+            .service(crate::api::projects::favorite_request)
             // PUT api
             .service(crate::api::projects::update_file_request) // StaticFiles projects
             // DELETE api
@@ -125,6 +126,7 @@ async fn main() -> std::io::Result<()> {
             .service(crate::pages::dashboard::project_file_editor_request)
             .service(crate::pages::dashboard::project_settings_request)
             .service(crate::pages::dashboard::project_view_request)
+            .service(crate::pages::dashboard::project_public_view_request)
             .service(crate::api::projects::read_file_global_request)
             .service(crate::api::projects::read_project_global_request)
             // ERRORS

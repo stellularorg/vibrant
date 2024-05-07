@@ -1,5 +1,6 @@
 use base64::Engine;
 use bollard::secret::HostConfig;
+use dorsal::db::special::log_db::Log;
 use dorsal::query as sqlquery;
 use dorsal::DefaultReturn;
 
@@ -166,6 +167,14 @@ impl Default for OrganizationMetadata {
     fn default() -> Self {
         OrganizationMetadata {}
     }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ProjectFavoriteLog {
+    /// the username of the user that favorited the project
+    pub user: String,
+    /// the name of the project that was favorited
+    pub project: String,
 }
 
 // props
@@ -466,7 +475,7 @@ impl Database {
         }
 
         // project cannot have names we may need
-        if ["dashboard", "api"].contains(&props.name.as_str()) {
+        if ["dashboard", "api", "social"].contains(&props.name.as_str()) {
             return DefaultReturn {
                 success: false,
                 message: String::from("Name is invalid"),
@@ -1900,6 +1909,179 @@ impl Database {
             message: String::from("File moved"),
             payload: Option::Some(path),
         };
+    }
+
+    // social
+
+    // GET
+    /// Get the number of [`ProjectFavoriteLog`]s a [`Project`] has
+    pub async fn get_project_favorites(&self, name: String) -> DefaultReturn<i32> {
+        // get project
+        let existing = self.get_project_by_id(name.clone()).await;
+
+        if existing.success == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Project does not exist!"),
+                payload: 0,
+            };
+        }
+
+        // get favorites
+        DefaultReturn {
+            success: true,
+            message: name.clone(),
+            // favorites are stored in the "Logs" table AS WELL AS an incremented value in the cache,
+            // we read the value from cache when checking the project's favorites, but read the cache value when fetching number
+            payload: self
+                .base
+                .cachedb
+                .get(format!("social:project-favorites:{}", name))
+                .await
+                .unwrap_or(String::from("0"))
+                .parse::<i32>()
+                .unwrap(),
+        }
+    }
+
+    pub async fn get_user_project_favorite(
+        &self,
+        user: String,
+        project: String,
+        skip_existing_check: bool,
+    ) -> DefaultReturn<Option<Log>> {
+        // get project
+        if skip_existing_check == false {
+            let existing = self.get_project_by_id(project.clone()).await;
+
+            if existing.success == false {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from("Project does not exist!"),
+                    payload: Option::None,
+                };
+            }
+        }
+
+        // ...
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
+            "SELECT * FROM \"Logs\" WHERE \"content\" = ? AND \"logtype\" = \"project_follow\""
+        } else {
+            "SELECT * FROM \"Logs\" WHERE \"content\" = $1 AND \"logtype\" = \"project_follow\""
+        };
+
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
+            .bind::<&String>(
+                &serde_json::to_string::<ProjectFavoriteLog>(&ProjectFavoriteLog {
+                    user,
+                    project: project.clone(),
+                })
+                .unwrap(),
+            )
+            .fetch_one(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let row = res.unwrap();
+        let row = self.base.textify_row(row).data;
+
+        DefaultReturn {
+            success: true,
+            message: project,
+            payload: Option::Some(Log {
+                id: row.get("id").unwrap().to_string(),
+                logtype: row.get("logtype").unwrap().to_string(),
+                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+                content: row.get("content").unwrap().to_string(),
+            }),
+        }
+    }
+
+    // SET
+    /// Toggle a [`ProjectFavoriteLog`] on a [`Project`] by `user` and `project`
+    pub async fn toggle_user_project_favorite(
+        &self,
+        user: String,
+        project: String,
+    ) -> DefaultReturn<Option<String>> {
+        // get project
+        let existing = self.get_project_by_id(project.clone()).await;
+
+        if existing.success == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Project does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        // check if user is project owner
+        let existing = existing.payload.unwrap();
+
+        if existing.owner == user {
+            return DefaultReturn {
+                success: false,
+                message: String::from("You're the project owner!"),
+                payload: Option::None,
+            };
+        }
+
+        // attempt to get the user's existing favorite
+        let existing_favorite = self
+            .get_user_project_favorite(user.clone(), project.clone(), true)
+            .await;
+
+        // if existing_favorite.message != project.clone() {
+        //     return DefaultReturn {
+        //         success: false,
+        //         message: existing_favorite.message,
+        //         payload: Option::None,
+        //     };
+        // }
+
+        // delete existing
+        if existing_favorite.success == true {
+            let payload = existing_favorite.payload.unwrap();
+
+            // decr favorites
+            self.base
+                .cachedb
+                .decr(format!("social:project-favorites:{}", project.clone()))
+                .await;
+
+            // handle log
+            return self.logs.delete_log(payload.id).await;
+        }
+        // add new
+        else {
+            // incr favorites
+            self.base
+                .cachedb
+                .incr(format!("social:project-favorites:{}", project.clone()))
+                .await;
+
+            // handle log
+            return self
+                .logs
+                .create_log(
+                    String::from("project_follow"),
+                    serde_json::to_string::<ProjectFavoriteLog>(&ProjectFavoriteLog {
+                        user,
+                        project,
+                    })
+                    .unwrap(),
+                )
+                .await;
+        }
     }
 
     // docker
