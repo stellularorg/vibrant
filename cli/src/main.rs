@@ -37,6 +37,8 @@ enum Commands {
     },
     /// Remove files
     Remove { files: Vec<String> },
+    /// Clone project into directory
+    Clone { project: String },
 }
 
 // ...
@@ -69,7 +71,7 @@ async fn main() {
                 )
                 .await;
 
-            if res.is_err() | (res.as_ref().unwrap().status() == StatusCode::NOT_ACCEPTABLE) {
+            if res.is_err() | (res.as_ref().unwrap().status() != StatusCode::OK) {
                 no("Failed to send request! Token may be invalid or the server may be unreachable.");
             }
 
@@ -78,6 +80,7 @@ async fn main() {
                 server: cnf.server,
                 auth_server: cnf.auth_server,
                 token: token.to_string(),
+                name: cnf.name,
                 ..Default::default()
             });
 
@@ -134,7 +137,7 @@ async fn main() {
                 .send()
                 .await;
 
-            if res.is_err() | (res.as_ref().unwrap().status() == StatusCode::NOT_ACCEPTABLE) {
+            if res.is_err() | (res.as_ref().unwrap().status() != StatusCode::OK) {
                 no("Failed to send request! An error may have occurred or the server may be unreachable.");
             }
 
@@ -168,7 +171,7 @@ async fn main() {
                     .send()
                     .await;
 
-                if res.is_err() | (res.as_ref().unwrap().status() == StatusCode::NOT_ACCEPTABLE) {
+                if res.is_err() | (res.as_ref().unwrap().status() != StatusCode::OK) {
                     no("Failed to send request! An error may have occurred or the server may be unreachable.");
                 }
 
@@ -254,8 +257,7 @@ async fn main() {
                         )
                         .await;
 
-                    if res.is_err() | (res.as_ref().unwrap().status() == StatusCode::NOT_ACCEPTABLE)
-                    {
+                    if res.is_err() | (res.as_ref().unwrap().status() != StatusCode::OK) {
                         no("Failed to send request! An error may have occurred or the server may be unreachable.");
                     }
                 }
@@ -293,8 +295,7 @@ async fn main() {
                         )
                         .await;
 
-                    if res.is_err() | (res.as_ref().unwrap().status() == StatusCode::NOT_ACCEPTABLE)
-                    {
+                    if res.is_err() | (res.as_ref().unwrap().status() != StatusCode::OK) {
                         no("Failed to send request! An error may have occurred or the server may be unreachable.");
                     }
                 }
@@ -336,12 +337,35 @@ async fn main() {
                     .send()
                     .await;
 
-                if res.is_err() | (res.as_ref().unwrap().status() == StatusCode::NOT_ACCEPTABLE) {
+                if res.is_err() | (res.as_ref().unwrap().status() != StatusCode::OK) {
                     no("Failed to send request! An error may have occurred or the server may be unreachable.");
                 }
             }
 
             yes(&format!("Removed {} files!", files.len()));
+        }
+        // clone
+        Commands::Clone { project } => {
+            let res = std::fs::create_dir(project);
+
+            if res.is_err() {
+                no("Failed to create directory!");
+            }
+
+            // create config file
+            let res = config::Configuration::create_config(
+                config::Configuration {
+                    name: Option::Some(project.to_string()),
+                    ..Default::default()
+                },
+                &format!("./{project}/.vibrant.toml"),
+            );
+
+            if res.is_err() {
+                no("Failed to create init file!");
+            } else {
+                yes("Project init file created! Run \"pull\" inside the created directory.");
+            }
         }
     }
 }

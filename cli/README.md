@@ -2,7 +2,7 @@
 
 Sync CLI for Vibrant projects.
 
-> **During BETA, you'll have to build the CLI manually on Windows, MacOS, and Linux! See instructions below.** \
+> **During BETA, you'll have to build the CLI manually on Windows, MacOS, and Linux! See instructions below.**
 
 ## Build
 

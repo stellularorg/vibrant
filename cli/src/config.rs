@@ -54,4 +54,11 @@ impl Configuration {
             format!("# DO **NOT** SHARE THIS FILE! This is needed for the Vibrant server connection.\n{}", toml::to_string_pretty::<Configuration>(&contents).unwrap()),
         )
     }
+
+    pub fn create_config(contents: Configuration, path: &str) -> std::io::Result<()> {
+        fs::write(
+            path,
+            format!("# DO **NOT** SHARE THIS FILE! This is needed for the Vibrant server connection.\n{}", toml::to_string_pretty::<Configuration>(&contents).unwrap()),
+        )
+    }
 }
