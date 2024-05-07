@@ -1965,9 +1965,9 @@ impl Database {
 
         // ...
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "SELECT * FROM \"Logs\" WHERE \"content\" = ? AND \"logtype\" = \"project_follow\""
+            "SELECT * FROM \"Logs\" WHERE \"content\" = ? AND \"logtype\" = 'project_favorite'"
         } else {
-            "SELECT * FROM \"Logs\" WHERE \"content\" = $1 AND \"logtype\" = \"project_follow\""
+            "SELECT * FROM \"Logs\" WHERE \"content\" = $1 AND \"logtype\" = 'project_favorite'"
         };
 
         let c = &self.base.db.client;
@@ -2073,7 +2073,7 @@ impl Database {
             return self
                 .logs
                 .create_log(
-                    String::from("project_follow"),
+                    String::from("project_favorite"),
                     serde_json::to_string::<ProjectFavoriteLog>(&ProjectFavoriteLog {
                         user,
                         project,
