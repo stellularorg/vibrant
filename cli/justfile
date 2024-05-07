@@ -1,0 +1,12 @@
+build:
+    cargo build -r
+
+add_targets:
+    rustup target add x86_64-unknown-linux-gnu
+    rustup target add x86_64-pc-windows-msvc
+    rustup target add x86_64-apple-darwin
+
+# build_all:
+#     cargo build --target=x86_64-unknown-linux-gnu -r
+#     cargo build --target=x86_64-pc-windows-msvc -r 
+#     cargo build --target=x86_64-apple-darwin -r

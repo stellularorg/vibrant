@@ -1,7 +1,13 @@
 *.db
 node_modules/
-bun.lockb
-static/js/
-static/css/
+server/static/js/
+server/static/css/
 target/
+
+# secrets
 .env
+.vibrant.toml
+
+# lock files
+bun.lockb
+cli/Cargo.lock
