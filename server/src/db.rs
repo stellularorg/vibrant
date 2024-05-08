@@ -2,6 +2,7 @@ use base64::Engine;
 use bollard::secret::HostConfig;
 use dorsal::db::special::log_db::Log;
 use dorsal::query as sqlquery;
+use dorsal::utility;
 use dorsal::DefaultReturn;
 
 use bollard::container::{Config as ContainerConfig, RemoveContainerOptions};
@@ -110,6 +111,10 @@ pub struct ProjectPrivateMetadata {
     #[serde(default)]
     pub image: String,
     pub cid: Option<String>,
+    // dates
+    /// actually a creation timestamp
+    #[serde(default = "default_creation_timestamp")]
+    pub created: u128,
 }
 
 impl Default for ProjectPrivateMetadata {
@@ -120,8 +125,14 @@ impl Default for ProjectPrivateMetadata {
             // container settings
             image: KIT_IMAGE.to_string(),
             cid: Option::None,
+            // dates
+            created: utility::unix_epoch_timestamp(),
         }
     }
+}
+
+fn default_creation_timestamp() -> u128 {
+    utility::unix_epoch_timestamp()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -988,7 +999,7 @@ impl Database {
         &self,
         name: String,
         metadata: ProjectPrivateMetadata,
-        edit_as: Option<String>, // username of account that is editing this project
+        // edit_as: Option<String>, // username of account that is editing this project
     ) -> DefaultReturn<Option<String>> {
         // make sure project exists
         let existing = &self.get_project_by_id(name.clone()).await;
@@ -1000,44 +1011,44 @@ impl Database {
             };
         }
 
-        let project = existing.payload.as_ref().unwrap();
+        // let project = existing.payload.as_ref().unwrap();
 
-        // get edit_as user account
-        let ua = if edit_as.is_some() {
-            Option::Some(
-                self.auth
-                    .get_user_by_username(edit_as.clone().unwrap())
-                    .await
-                    .payload,
-            )
-        } else {
-            Option::None
-        };
+        // // get edit_as user account
+        // let ua = if edit_as.is_some() {
+        //     Option::Some(
+        //         self.auth
+        //             .get_user_by_username(edit_as.clone().unwrap())
+        //             .await
+        //             .payload,
+        //     )
+        // } else {
+        //     Option::None
+        // };
 
-        // if ua.is_none() {
-        //     return DefaultReturn {
-        //         success: false,
-        //         message: String::from("An account is required to do this"),
-        //         payload: Option::None,
-        //     };
+        // // if ua.is_none() {
+        // //     return DefaultReturn {
+        // //         success: false,
+        // //         message: String::from("An account is required to do this"),
+        // //         payload: Option::None,
+        // //     };
+        // // }
+
+        // // make sure we can do this
+        // if ua.is_some() {
+        //     let user = ua.unwrap().unwrap();
+        //     let can_edit: bool = (user.user.username == project.owner)
+        //         | (user.level.permissions.contains(&String::from("VIB:Admin")));
+
+        //     if can_edit == false {
+        //         return DefaultReturn {
+        //             success: false,
+        //             message: String::from(
+        //                 "You do not have permission to manage this project's contents.",
+        //             ),
+        //             payload: Option::None,
+        //         };
+        //     }
         // }
-
-        // make sure we can do this
-        if ua.is_some() {
-            let user = ua.unwrap().unwrap();
-            let can_edit: bool = (user.user.username == project.owner)
-                | (user.level.permissions.contains(&String::from("VIB:Admin")));
-
-            if can_edit == false {
-                return DefaultReturn {
-                    success: false,
-                    message: String::from(
-                        "You do not have permission to manage this project's contents.",
-                    ),
-                    payload: Option::None,
-                };
-            }
-        }
 
         // update project
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
@@ -2150,7 +2161,7 @@ impl Database {
         metadata.cid = Option::Some(cid.clone());
 
         // store cid
-        self.edit_project_private_metadata_by_name(name, metadata, Option::None)
+        self.edit_project_private_metadata_by_name(name, metadata)
             .await;
 
         // default return

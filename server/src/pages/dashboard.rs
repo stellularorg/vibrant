@@ -72,6 +72,7 @@ struct ProjectPublicTemplate {
     project: Project,
     favorites_count: i32,
     has_favorited: bool,
+    files: Vec<String>,
     // required fields (super::base)
     auth_state: bool,
     guppy: String,
@@ -286,11 +287,23 @@ pub async fn project_view_request(
         return super::errors::error404(req, data).await;
     }
 
+    let project = project.payload.unwrap();
+
     let favorites_count = data
         .db
         .get_project_favorites(project_name.to_string())
         .await
         .payload;
+
+    // projects didn't previously store a creation date
+    if project.private_metadata.created == 0 {
+        let mut metadata = project.private_metadata.clone();
+        metadata.created = project.timestamp.clone();
+
+        data.db
+            .edit_project_private_metadata_by_name(project.name.clone(), metadata)
+            .await;
+    }
 
     // fetch project files
     let files = data
@@ -309,7 +322,7 @@ pub async fn project_view_request(
         .append_header(("Content-Type", "text/html"))
         .body(
             ProjectViewTemplate {
-                project: project.payload.unwrap(),
+                project,
                 files: files.payload,
                 asset_requests: data
                     .db
@@ -365,9 +378,19 @@ pub async fn project_public_view_request(
         return super::errors::error404(req, data).await;
     }
 
-    // check project file privacy
     let project = project.payload.unwrap();
 
+    // projects didn't previously store a creation date
+    if project.private_metadata.created == 0 {
+        let mut metadata = project.private_metadata.clone();
+        metadata.created = project.timestamp.clone();
+
+        data.db
+            .edit_project_private_metadata_by_name(project.name.clone(), metadata)
+            .await;
+    }
+
+    // check project file privacy
     if project.metadata.file_privacy != ProjectFilePrivacy::Public {
         return super::errors::error404(req, data).await;
     }
@@ -389,6 +412,16 @@ pub async fn project_public_view_request(
             .success
     };
 
+    // fetch project files
+    let files = data
+        .db
+        .get_project_files(project_name.to_string(), Option::None, true)
+        .await;
+
+    if !files.success {
+        return super::errors::error404(req, data).await;
+    }
+
     // ...
     let base = base::get_base_values(token_user.is_some());
     return HttpResponse::Ok()
@@ -399,6 +432,7 @@ pub async fn project_public_view_request(
                 project,
                 favorites_count,
                 has_favorited,
+                files: files.payload,
                 // required fields
                 auth_state: base.auth_state,
                 guppy: base.guppy,

@@ -12,7 +12,7 @@
     <div id="error" class="mdnote note-error full" style="display: none;"></div>
     <div id="success" class="mdnote note-note full" style="display: none;"></div>
 
-    <div class="flex g-4 justify-space-between flex-wrap mobile:flex-column card secondary round">
+    <div class="flex g-4 justify-space-between align-center flex-wrap mobile:flex-column card secondary round">
         <!-- left -->
         <div class="mobile:max" style="width: calc(100% - 30rem - var(--u-04));" id="thumbnail_box">
             <!-- thumbnail -->
@@ -59,10 +59,20 @@
                     color: white;
                     border-radius: var(--u-02);
                     transition: opacity 0.15s;
+                    z-index: 2;
+                }
+
+                #thumbnail_button svg {
+                    transition: transform 0.2s;
+                    transform: scale(0);
                 }
 
                 #thumbnail_box:hover #thumbnail_button {
                     opacity: 100%;
+                }
+
+                #thumbnail_box:hover #thumbnail_button svg {
+                    transform: scale(1);
                 }
             </style>
         </div>
@@ -99,6 +109,36 @@
             </div>
         </div>
     </div>
+
+    <div class="card segmented_card full secondary round flex justify-space-between g-4 mobile:flex-column">
+        <span class="segment"><b>Type</b>: {{ project.private_metadata.type }}</span>
+        <span class="segment">
+            <b>Created:</b>
+            <span class="date-time-to-localize">{{ project.private_metadata.created}}</span>
+        </span>
+        <span class="segment"><b>Level:</b> {{ project.private_metadata.limit }}</span>
+        <span class="segment"><b>File Privacy</b>: {{ project.metadata.file_privacy }}</span>
+    </div>
+
+    <table class="full stripped" id="files_list">
+        <thead>
+            <tr>
+                <th>Path</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for f in files.iter() %}
+            <tr>
+                <td>
+                    <div class="flex align-center g-4">
+                        <a href="/{{ project.name }}{{ f }}">{{ f }}</a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </main>
 
 <script type="module">
