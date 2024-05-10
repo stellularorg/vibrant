@@ -87,6 +87,8 @@
             <!-- actions -->
             <div class="flex g-4">
                 <a href="/{{ project.name }}" class="button full round theme:primary">View Project</a>
+                
+                {% if auth_state == true %}
                 <button id="favorite_project" data-endpoint="/api/v1/project/{{ project.name }}/favorite"
                     class="theme:secondary round" title="Toggle Favorite">
                     <svg id="favorite_star" xmlns="http://www.w3.org/2000/svg" width="18" height="18"
@@ -106,6 +108,7 @@
                     </style>
                     {% endif %}
                 </button>
+                {% endif %}
             </div>
         </div>
     </div>

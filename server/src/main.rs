@@ -122,6 +122,8 @@ async fn main() -> std::io::Result<()> {
             .service(crate::pages::dashboard::dashboard_request)
             .service(crate::pages::dashboard::new_project_request)
             .service(crate::pages::dashboard::projects_dashboard_request)
+            // GET admin
+            .service(crate::pages::admin::dashboard_request)
             // GET project
             .service(crate::pages::dashboard::project_file_editor_request)
             .service(crate::pages::dashboard::project_settings_request)
