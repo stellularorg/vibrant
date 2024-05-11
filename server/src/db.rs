@@ -139,15 +139,12 @@ fn default_creation_timestamp() -> u128 {
 pub struct ProjectMetadata {
     /// Simple bash script to run deployment commands
     #[serde(default)]
-    pub script: String,
-    #[serde(default)]
     pub file_privacy: ProjectFilePrivacy,
 }
 
 impl Default for ProjectMetadata {
     fn default() -> Self {
         ProjectMetadata {
-            script: String::new(),
             file_privacy: ProjectFilePrivacy::default(),
         }
     }
@@ -1221,6 +1218,7 @@ impl Database {
         mut path: String,
         as_user: Option<String>,
         bypass_user_checks: bool,
+        protected: bool,
     ) -> DefaultReturn<Option<Vec<u8>>> {
         // get project
         let existing = self.get_project_by_id(name.clone()).await;
@@ -1259,6 +1257,17 @@ impl Database {
                         payload: Option::None,
                     };
                 }
+            }
+        }
+
+        // protected
+        if !protected {
+            if path.contains(".secrets") {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from("This path requires protected read access."),
+                    payload: Option::None,
+                };
             }
         }
 

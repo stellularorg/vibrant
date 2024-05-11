@@ -16,7 +16,7 @@ if (edit_script_form) {
         const res = await fetch(edit_script_form.action, {
             method: "POST",
             body: JSON.stringify({
-                script: edit_script_form.script.value,
+                init_score: edit_script_form.script.value,
             }),
             headers: {
                 "Content-Type": "application/json",

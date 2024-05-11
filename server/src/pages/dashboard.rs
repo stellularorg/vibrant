@@ -295,6 +295,21 @@ pub async fn project_view_request(
         .await
         .payload;
 
+    // make sure we have permission to manage this project
+    if token_user.is_none()
+        | (token_user
+            .as_ref()
+            .unwrap()
+            .payload
+            .as_ref()
+            .unwrap()
+            .user
+            .username
+            != project.owner)
+    {
+        return super::errors::error404(req, data).await;
+    }
+
     // projects didn't previously store a creation date
     if project.private_metadata.created == 0 {
         let mut metadata = project.private_metadata.clone();
@@ -469,6 +484,7 @@ pub async fn project_file_editor_request(
             project_name.to_string(),
             path.to_string(),
             Option::None,
+            true,
             true,
         )
         .await;

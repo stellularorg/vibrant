@@ -103,7 +103,6 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::projects::create_request)
             .service(crate::api::projects::insert_file_request) // StaticFiles projects
             .service(crate::api::projects::move_file_request) // StaticFiles projects
-            .service(crate::api::projects::edit_script_request)
             .service(crate::api::projects::update_metadata_request)
             .service(crate::api::projects::update_fields_request)
             .service(crate::api::projects::favorite_request)
@@ -114,7 +113,6 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::projects::delete_project_request)
             // GET api
             .service(crate::api::auth::logout)
-            .service(crate::api::projects::get_script_request)
             .service(crate::api::projects::get_project_files_request) // StaticFiles projects
             .service(crate::api::projects::read_file_request) // StaticFiles projects
             // GET root
