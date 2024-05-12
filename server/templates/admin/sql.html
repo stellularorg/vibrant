@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div id="link-header" style="display: flex;" class="flex-column bg-1">
+    <div class="link-header-top"></div>
+    <div class="link-header-middle">
+        <h1 class="no-margin">Admin</h1>
+    </div>
+    <div class="link-header-bottom">
+        <a href="/dashboard/admin" class="button">Home</a>
+        <a href="/dashboard/admin/projects" class="button">Projects</a>
+        <a href="/dashboard/admin/roles" class="button">Roles</a>
+        <a href="/dashboard/admin/sql" class="button active">SQL</a>
+    </div>
+</div>
+
+<main class="flex flex-column g-4">
+    <div class="full card secondary round">
+        <form class="full flex flex-column g-4">
+            <textarea name="query" id="query" placeholder="SQL Query" class="round"
+                style="font-family: monospace;">{{ query }}</textarea>
+
+            <div class="flex full justify-right">
+                <button class="round theme:primary">Execute</button>
+            </div>
+        </form>
+    </div>
+
+    {% if mode == "" && query != "" %}
+    <div id="success" class="mdnote note-note full">
+        <div class="mdnote-title">Query executed successfully!</div>
+    </div>
+    {% endif %}
+</main>
+
+<div style="overflow: auto;">
+    {% if mode == "" && res.len() > 0 %}
+    <table class="stripped">
+        <thead>
+            <tr>
+                <!-- fill column names from first entry -->
+                {% for row in res[0] %}
+                <th>{{ row.0 }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for row in res %}
+            <tr>
+                {% for val in row %}
+                <td>
+                    <pre><code>{{ val.1 }}</code></pre>
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <style>
+        table {
+            table-layout: fixed;
+            width: 100%;
+        }
+
+        table.stripped tbody tr td {
+            font-family: monospace;
+        }
+
+        pre {
+            margin: 0 !important;
+        }
+    </style>
+    {% endif %}
+</div>
+{% call super() %}
+{% endblock %}

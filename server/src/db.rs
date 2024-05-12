@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use base64::Engine;
 use bollard::secret::HostConfig;
 use dorsal::db::special::log_db::Log;
@@ -267,6 +269,67 @@ impl Database {
         )
         .execute(c)
         .await;
+    }
+
+    /// Sort a hashmap by its keys from shortest to longest
+    pub fn sort_hashmap_by_keys<T>(&self, hashmap: HashMap<String, T>) -> Vec<(String, T)> {
+        let mut out = Vec::new();
+
+        // build vec from hashmap
+        for x in hashmap {
+            out.push(x);
+        }
+
+        // since 2 things that are the same length would get mixed up using just the length,
+        // we also sort by the character id of the first character in the key
+        out.sort_by_key(|k| (k.0.chars().next().unwrap() as u64) + (k.0.len() as u64));
+
+        // ...
+        return out;
+    }
+
+    /// Run a general SQL query and return the result
+    pub async fn general_query(
+        &self,
+        mut query: String,
+    ) -> DefaultReturn<Vec<HashMap<String, String>>> {
+        if query == "" {
+            return DefaultReturn {
+                success: true,
+                message: String::new(),
+                payload: Vec::new(),
+            };
+        }
+
+        if !query.contains("LIMIT") {
+            query += " LIMIT 1000";
+        }
+
+        let c = &self.base.db.client;
+        let res = sqlquery(&query).fetch_all(c).await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Vec::new(),
+            };
+        }
+
+        // ...
+        let rows = res.unwrap();
+        let mut out = Vec::new();
+
+        for row in rows {
+            let row = self.base.textify_row(row).data;
+            out.push(row);
+        }
+
+        DefaultReturn {
+            success: true,
+            message: String::from("Query finished"),
+            payload: out,
+        }
     }
 
     // projects
