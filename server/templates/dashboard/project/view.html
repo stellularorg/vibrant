@@ -65,8 +65,6 @@
     <div class="card round secondary full" id="deployment">
         <ul>
             <li><b>Type</b>: {{ project.private_metadata.type }}</li>
-            <li><b>CID</b>: {{ project.private_metadata.cid.clone().unwrap_or(String::from("Project does not own a
-                container")) }}</li>
             <li><b>Requests</b>: {{ asset_requests }}</li>
             <li><b>Request Limit</b>: {{ project.private_metadata.limit }}</li>
             <li><b>Hosted</b>: <a id="live_url" data-project="{{ project.name }}" target="_blank" href="#"></a>, <a

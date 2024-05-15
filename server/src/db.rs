@@ -1,24 +1,19 @@
 use std::collections::HashMap;
 
 use base64::Engine;
-use bollard::secret::HostConfig;
+use conductor::{score, ConductorEngine};
 use dorsal::db::special::log_db::Log;
 use dorsal::query as sqlquery;
 use dorsal::utility;
 use dorsal::DefaultReturn;
 
-use bollard::container::{Config as ContainerConfig, RemoveContainerOptions};
-use bollard::Docker;
-
 use serde::{Deserialize, Serialize};
-
-const KIT_IMAGE: &str = "vibrant_deploy_kit:latest"; // container image
 
 #[derive(Clone)]
 pub struct AppData {
     pub db: Database,
     pub http_client: awc::Client,
-    pub daemon: Docker,
+    pub engine: ConductorEngine,
     pub port: u16,
 }
 
@@ -49,8 +44,6 @@ impl std::fmt::Display for ProjectRequestLimit {
 pub enum ProjectType {
     /// Files are manually uploaded and stored in the database as base64
     StaticPackage,
-    /// Files are built inside of a dedicated Docker container/microvm
-    StaticContainer,
 }
 
 impl Default for ProjectType {
@@ -109,10 +102,6 @@ pub struct ProjectPrivateMetadata {
     pub r#type: ProjectType,
     #[serde(default)]
     pub limit: ProjectRequestLimit,
-    // container settings
-    #[serde(default)]
-    pub image: String,
-    pub cid: Option<String>,
     // dates
     /// actually a creation timestamp
     #[serde(default = "default_creation_timestamp")]
@@ -124,9 +113,6 @@ impl Default for ProjectPrivateMetadata {
         ProjectPrivateMetadata {
             r#type: ProjectType::default(),
             limit: ProjectRequestLimit::default(),
-            // container settings
-            image: KIT_IMAGE.to_string(),
-            cid: Option::None,
             // dates
             created: utility::unix_epoch_timestamp(),
         }
@@ -508,8 +494,6 @@ impl Database {
         &self,
         props: &mut PCreateProject,
         as_user: Option<String>, // username of owner
-        daemon: Docker,
-        port: u16,
     ) -> DefaultReturn<Option<PCreateProject>> {
         // make sure we're authenticated
         if as_user.is_none() {
@@ -695,10 +679,6 @@ impl Database {
         self.base
             .cachedb
             .remove_starting_with(format!("projects-by-owner:{}:*", user.user.username))
-            .await;
-
-        // create container
-        self.create_project_container(props.name.clone(), daemon, port)
             .await;
 
         // return
@@ -1163,7 +1143,6 @@ impl Database {
         &self,
         name: String,
         delete_as: Option<String>, // username of account that is deleting this project
-        daemon: Docker,
     ) -> DefaultReturn<Option<String>> {
         // make sure project exists
         let existing = &self.get_project_by_id(name.clone()).await;
@@ -1223,9 +1202,6 @@ impl Database {
                 payload: Option::None,
             };
         }
-
-        // remove container
-        self.remove_project_container(name.clone(), daemon).await;
 
         // remove files
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
@@ -2167,204 +2143,49 @@ impl Database {
         }
     }
 
-    // docker
+    // conductor
 
-    // SET
-
-    /// Create a Docker container for a given [`Project`]
-    pub async fn create_project_container(
-        &self,
-        name: String,
-        daemon: Docker,
-        port: u16,
-    ) -> DefaultReturn<Option<String>> {
-        // get project
-        let existing = self.get_project_by_id(name.clone()).await;
-
-        if existing.success == false {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Project does not exist!"),
-                payload: Option::None,
-            };
-        }
-
-        // create container
-        let mut metadata = existing.payload.unwrap().private_metadata;
-
-        if metadata.r#type != ProjectType::StaticContainer {
-            return DefaultReturn {
-                success: true,
-                message: String::from("Project is not a container project"),
-                payload: Option::None,
-            };
-        }
-
-        let res = daemon
-            .create_container::<&str, &str>(
+    // GET
+    /// Get a [`Project`] score from the `/.secrets/palette.toml` file
+    pub async fn get_project_score(&self, project: String) -> DefaultReturn<Option<score::Score>> {
+        // get file
+        let file = self
+            .get_file_in_project(
+                project,
+                String::from("/.secrets/palette.toml"),
                 Option::None,
-                ContainerConfig {
-                    image: Option::Some(&metadata.image),
-                    env: Option::Some(vec![
-                        &format!("VIBRANT_URL=\"http://localhost:{port}\""),
-                        &format!("PROJECT=\"{name}\""),
-                    ]),
-                    host_config: Option::Some(HostConfig {
-                        extra_hosts: Option::Some(vec![
-                            // add host network so we can connect to vibrant
-                            "host.docker.internal:host-gateway".to_string(),
-                        ]),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                },
+                true,
+                true,
             )
             .await;
 
-        if res.is_err() {
+        if file.success == false {
             return DefaultReturn {
                 success: false,
-                message: String::from("Failed to create container"),
+                message: file.message,
                 payload: Option::None,
             };
         }
 
-        let cid = res.unwrap().id;
-        metadata.cid = Option::Some(cid.clone());
+        // decode
+        let vec = file.payload.unwrap();
+        let as_str = std::str::from_utf8(&vec).unwrap_or("");
 
-        // store cid
-        self.edit_project_private_metadata_by_name(name, metadata)
-            .await;
+        let as_score = toml::from_str::<score::Score>(as_str);
 
-        // default return
-        return DefaultReturn {
-            success: false,
-            message: String::from("Started container"),
-            payload: Option::Some(cid),
-        };
-    }
-
-    /// Start a [`Project`] container based on its stored CID
-    pub async fn start_project_container(
-        &self,
-        name: String,
-        daemon: Docker,
-    ) -> DefaultReturn<Option<String>> {
-        // get project
-        let existing = self.get_project_by_id(name.clone()).await;
-
-        if existing.success == false {
+        if as_score.is_err() {
             return DefaultReturn {
                 success: false,
-                message: String::from("Project does not exist!"),
+                message: as_score.err().unwrap().to_string(),
                 payload: Option::None,
             };
         }
 
-        // get cid
-        let metadata = existing.payload.unwrap().private_metadata;
-
-        if metadata.r#type != ProjectType::StaticContainer {
-            return DefaultReturn {
-                success: true,
-                message: String::from("Project is not a container project"),
-                payload: Option::None,
-            };
+        // return
+        DefaultReturn {
+            success: true,
+            message: String::from("Score exists"),
+            payload: Option::Some(as_score.unwrap()),
         }
-
-        let cid = metadata.cid;
-
-        if cid.is_none() {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Project container does not exist"),
-                payload: Option::None,
-            };
-        }
-
-        // start container
-        let res = daemon
-            .start_container::<String>(&cid.as_ref().unwrap(), Option::None)
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Failed to start project container"),
-                payload: Option::None,
-            };
-        }
-
-        // default return
-        return DefaultReturn {
-            success: false,
-            message: String::from("Started container"),
-            payload: Option::Some(cid.unwrap()),
-        };
-    }
-
-    /// Remove a [`Project`] container based on its stored CID
-    pub async fn remove_project_container(
-        &self,
-        name: String,
-        daemon: Docker,
-    ) -> DefaultReturn<Option<String>> {
-        // get project
-        let existing = self.get_project_by_id(name.clone()).await;
-
-        if existing.success == false {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Project does not exist!"),
-                payload: Option::None,
-            };
-        }
-
-        // get cid
-        let metadata = existing.payload.unwrap().private_metadata;
-
-        if metadata.r#type != ProjectType::StaticContainer {
-            return DefaultReturn {
-                success: true,
-                message: String::from("Project is not a container project"),
-                payload: Option::None,
-            };
-        }
-
-        let cid = metadata.cid;
-
-        if cid.is_none() {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Project container does not exist"),
-                payload: Option::None,
-            };
-        }
-
-        // delete container
-        let res = daemon
-            .remove_container(
-                &cid.as_ref().unwrap(),
-                Option::Some(RemoveContainerOptions {
-                    force: true,
-                    ..Default::default()
-                }),
-            )
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Failed to delete project container"),
-                payload: Option::None,
-            };
-        }
-
-        // default return
-        return DefaultReturn {
-            success: false,
-            message: String::from("Container deleted"),
-            payload: Option::Some(cid.unwrap()),
-        };
     }
 }

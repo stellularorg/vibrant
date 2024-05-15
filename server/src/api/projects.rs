@@ -30,8 +30,6 @@ pub async fn create_request(
             } else {
                 Option::None
             },
-            data.daemon.clone(),
-            data.port.clone(),
         )
         .await;
 
@@ -140,7 +138,6 @@ pub async fn delete_project_request(req: HttpRequest, data: web::Data<AppData>) 
         .delete_project(
             project_name.to_string(),
             Option::Some(token_user.unwrap().payload.unwrap().user.username),
-            data.daemon.clone(),
         )
         .await;
 

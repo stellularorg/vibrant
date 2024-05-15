@@ -72,7 +72,10 @@ async fn main() -> std::io::Result<()> {
         let data = web::Data::new(AppData {
             db: db.clone(),
             http_client: client,
-            daemon: bollard::Docker::connect_with_defaults().unwrap(),
+            engine: conductor::ConductorEngine::new(conductor::ConductorEngineConfig {
+                allow_builds: false,
+                allow_port_config: false,
+            }),
             port: port,
         });
 
