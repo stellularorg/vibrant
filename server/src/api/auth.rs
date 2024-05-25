@@ -7,7 +7,7 @@ pub struct CallbackQueryProps {
                              // the uid will also be sent to the client as a token on GUPPY_ROOT, meaning we'll have signed in here and there!
 }
 
-#[get("/api/auth/callback")]
+#[get("/api/v1/auth/callback")]
 pub async fn callback_request(info: web::Query<CallbackQueryProps>) -> impl Responder {
     let set_cookie = if info.uid.is_some() {
         format!("__Secure-Token={}; SameSite=Lax; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age={}", info.uid.as_ref().unwrap(), 60 * 60 * 24 * 365)
@@ -29,7 +29,7 @@ pub async fn callback_request(info: web::Query<CallbackQueryProps>) -> impl Resp
         );
 }
 
-#[get("/api/auth/logout")]
+#[get("/api/v1/auth/logout")]
 pub async fn logout(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
     let cookie = req.cookie("__Secure-Token");
 

@@ -59,7 +59,7 @@ async fn main() {
         Commands::Login { token } => {
             // check token validity by attempting to login
             let res = client
-                .post(format!("{}/api/auth/login-st", cnf.auth_server))
+                .post(format!("{}/api/v1/auth/login-st", cnf.auth_server))
                 .timeout(std::time::Duration::from_millis(10_000))
                 .append_header(("Content-Type", "application/json"))
                 // .cookie(Cookie::new())
