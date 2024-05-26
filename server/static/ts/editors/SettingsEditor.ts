@@ -54,6 +54,33 @@ export function project_settings(
                 options = build_options(metadata, current_property);
                 render_project_settings_fields(field, options, option_render); // rerender
                 return;
+            } else if (current_property === "clean_paths") {
+                let meta_value = metadata[current_property];
+
+                (globalThis as any).set_yes_no_option = (e: any) => {
+                    const selected = (
+                        e.target.options[
+                            e.target.selectedIndex
+                        ] as HTMLOptionElement
+                    ).value;
+
+                    metadata[current_property] = selected === "true";
+                };
+
+                // add button
+                option_render = `<select class="round mobile:max" onchange="window.set_yes_no_option(event);" style="width: 60%;">
+                    <option value="true" ${
+                        meta_value === true ? "selected" : ""
+                    }>Yes</option>
+
+                    <option value="false" ${
+                        meta_value === false ? "selected" : ""
+                    }>No</option>
+                </select>`;
+
+                options = build_options(metadata, current_property);
+                render_project_settings_fields(field, options, option_render); // rerender
+                return;
             }
 
             // ...

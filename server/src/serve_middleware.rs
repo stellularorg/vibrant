@@ -173,7 +173,8 @@ where
                     data.db.incr_project_requests(project.to_string()).await;
 
                     // get file extension from path
-                    let ext = path
+                    let ext = file
+                        .message
                         .split(".")
                         .collect::<Vec<&str>>()
                         .pop()

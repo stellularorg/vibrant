@@ -237,7 +237,8 @@ pub async fn read_file_request(req: HttpRequest, data: web::Data<AppData>) -> im
         .await;
 
     // get file extension from path
-    let ext = path
+    let ext = res
+        .message
         .split(".")
         .collect::<Vec<&str>>()
         .pop()
@@ -289,7 +290,8 @@ pub async fn read_project_global_request(
         .await;
 
     // get file extension from path
-    let ext = path
+    let ext = res
+        .message
         .split(".")
         .collect::<Vec<&str>>()
         .pop()
@@ -341,7 +343,8 @@ pub async fn read_file_global_request(
         .await;
 
     // get file extension from path
-    let ext = path
+    let ext = res
+        .message
         .split(".")
         .collect::<Vec<&str>>()
         .pop()

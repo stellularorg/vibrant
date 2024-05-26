@@ -128,12 +128,15 @@ pub struct ProjectMetadata {
     /// Simple bash script to run deployment commands
     #[serde(default)]
     pub file_privacy: ProjectFilePrivacy,
+    #[serde(default)]
+    pub clean_paths: bool,
 }
 
 impl Default for ProjectMetadata {
     fn default() -> Self {
         ProjectMetadata {
             file_privacy: ProjectFilePrivacy::default(),
+            clean_paths: false,
         }
     }
 }
@@ -1317,6 +1320,11 @@ impl Database {
             path = format!("/{}", path);
         }
 
+        // clean paths
+        if (project.metadata.clean_paths == true) && (!path.contains(".")) {
+            path = format!("{path}.html");
+        }
+
         // get project owner
         let user = self.auth.get_user_by_username(project.owner).await;
 
@@ -1451,7 +1459,7 @@ impl Database {
         // return
         return DefaultReturn {
             success: true,
-            message: String::from("Path exists"),
+            message: path,
             payload: Option::Some(bytes),
         };
     }
